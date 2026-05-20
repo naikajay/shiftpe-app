@@ -5,12 +5,11 @@ import React, {
   useContext,
   useEffect,
   useMemo,
-  useState,
 } from "react";
 
 import { useAuth } from "./AuthContext";
-import { realtime } from "../services/realtime";
-import { tasks as taskService } from "../services/tasks";
+import { useSocketStore } from "../store/socketStore";
+import { useTaskStore } from "../store/taskStore";
 import { ExploreTasksQuery, Task, TaskRequest } from "../types/task";
 
 interface TaskContextType {
@@ -51,93 +50,75 @@ const buildNearbyQuery = (userLocation?: { coordinates: [number, number] }): Exp
 
 export const TaskProvider = ({ children }: { children: ReactNode }) => {
   const { user } = useAuth();
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [activeTask, setActiveTask] = useState<Task | null>(null);
-  const [activeRequest, setActiveRequest] = useState<TaskRequest | null>(null);
-  const [loadingTasks, setLoadingTasks] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
-  const [applyingTaskId, setApplyingTaskId] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const connectSocket = useSocketStore((state) => state.connect);
+  const {
+    tasks,
+    activeTask,
+    activeRequest,
+    loadingTasks,
+    refreshing,
+    applyingTaskId,
+    error,
+    hydrateCache,
+    loadDashboard: loadDashboardStore,
+    refreshDashboard: refreshDashboardStore,
+    applyForTask: applyForTaskStore,
+    markActiveWorkComplete: markActiveWorkCompleteStore,
+    upsertTask,
+    clearError,
+  } = useTaskStore();
+
+  const nearbyQuery = useMemo(
+    () => buildNearbyQuery(user?.location),
+    [user?.location]
+  );
+
+  useEffect(() => {
+    hydrateCache();
+  }, [hydrateCache]);
 
   const loadDashboard = useCallback(async () => {
-    setLoadingTasks(true);
-    setError(null);
-
-    try {
-      const [nextTasks, nextActiveTask] = await Promise.all([
-        taskService.getNearbyTasks(buildNearbyQuery(user?.location)),
-        taskService.getActiveTask(),
-      ]);
-      const requests = await taskService.getWorkerRequests("accepted");
-
-      setTasks(nextTasks);
-      setActiveTask(nextActiveTask);
-      setActiveRequest(requests[0] ?? null);
-    } catch (caught: any) {
-      setError(caught.message);
-    } finally {
-      setLoadingTasks(false);
-    }
-  }, [user?.location]);
+    await loadDashboardStore(nearbyQuery);
+  }, [loadDashboardStore, nearbyQuery]);
 
   const refreshDashboard = useCallback(async () => {
-    setRefreshing(true);
-    setError(null);
-
-    try {
-      const [nextTasks, nextActiveTask] = await Promise.all([
-        taskService.getNearbyTasks(buildNearbyQuery(user?.location)),
-        taskService.getActiveTask(),
-      ]);
-      const requests = await taskService.getWorkerRequests("accepted");
-
-      setTasks(nextTasks);
-      setActiveTask(nextActiveTask);
-      setActiveRequest(requests[0] ?? null);
-    } catch (caught: any) {
-      setError(caught.message);
-    } finally {
-      setRefreshing(false);
-    }
-  }, [user?.location]);
+    await refreshDashboardStore(nearbyQuery);
+  }, [nearbyQuery, refreshDashboardStore]);
 
   const applyForTask = useCallback(
     async (taskId: string) => {
-      setApplyingTaskId(taskId);
-      setError(null);
-
-      try {
-        await taskService.applyForTask(taskId);
-        await refreshDashboard();
-      } catch (caught: any) {
-        setError(caught.message);
-        throw caught;
-      } finally {
-        setApplyingTaskId(null);
-      }
+      await applyForTaskStore(taskId, nearbyQuery);
     },
-    [refreshDashboard]
+    [applyForTaskStore, nearbyQuery]
   );
+
+  const markActiveWorkComplete = useCallback(async () => {
+    await markActiveWorkCompleteStore(nearbyQuery);
+  }, [markActiveWorkCompleteStore, nearbyQuery]);
 
   useEffect(() => {
     if (!user) return;
 
     let mounted = true;
-    realtime.connect().then((socket) => {
+    connectSocket().then((socket) => {
       if (!mounted) return;
       socket.on("task:accepted", refreshDashboard);
       socket.on("task:work-completed", refreshDashboard);
       socket.on("task:status", refreshDashboard);
+      socket.on("task:update", (task: Task) => {
+        upsertTask(task);
+      });
     });
 
     return () => {
       mounted = false;
-      const socket = realtime.getSocket();
+      const socket = useSocketStore.getState().socket;
       socket?.off("task:accepted", refreshDashboard);
       socket?.off("task:work-completed", refreshDashboard);
       socket?.off("task:status", refreshDashboard);
+      socket?.off("task:update");
     };
-  }, [refreshDashboard, user]);
+  }, [connectSocket, refreshDashboard, upsertTask, user]);
 
   const value = useMemo(
     () => ({
@@ -151,24 +132,8 @@ export const TaskProvider = ({ children }: { children: ReactNode }) => {
       loadDashboard,
       refreshDashboard,
       applyForTask,
-      markActiveWorkComplete: async () => {
-        if (!activeRequest?._id) {
-          setError("No active task request found.");
-          return;
-        }
-        setLoadingTasks(true);
-        setError(null);
-        try {
-          await taskService.markRequestComplete(activeRequest._id);
-          await refreshDashboard();
-        } catch (caught: any) {
-          setError(caught.message);
-          throw caught;
-        } finally {
-          setLoadingTasks(false);
-        }
-      },
-      clearError: () => setError(null),
+      markActiveWorkComplete,
+      clearError,
     }),
     [
       tasks,
@@ -181,6 +146,8 @@ export const TaskProvider = ({ children }: { children: ReactNode }) => {
       loadDashboard,
       refreshDashboard,
       applyForTask,
+      markActiveWorkComplete,
+      clearError,
     ]
   );
 

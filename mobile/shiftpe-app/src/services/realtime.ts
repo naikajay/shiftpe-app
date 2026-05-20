@@ -1,8 +1,8 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { io, Socket } from "socket.io-client";
 
 import { API } from "./api";
 import { storageKeys } from "../constants/storage";
+import { storage } from "../utils/storage";
 
 let socket: Socket | null = null;
 
@@ -18,7 +18,7 @@ const getSocketUrl = () => {
 
 export const realtime = {
   async connect() {
-    const token = await AsyncStorage.getItem(storageKeys.authToken);
+    const token = await storage.getString(storageKeys.authToken);
 
     if (!token) {
       throw new Error("Login is required for realtime updates.");

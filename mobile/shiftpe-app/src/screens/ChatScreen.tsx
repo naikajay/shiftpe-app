@@ -11,6 +11,7 @@ import { useAuth } from "../context/AuthContext";
 import { RootStackParamList } from "../navigation/AppNavigator";
 import { realtime } from "../services/realtime";
 import { tasks } from "../services/tasks";
+import { useTaskStore } from "../store/taskStore";
 import { ChatRoom, Message } from "../types/task";
 
 export default function ChatScreen() {
@@ -22,6 +23,8 @@ export default function ChatScreen() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [typing, setTyping] = useState(false);
+  const cacheMessages = useTaskStore((state) => state.cacheMessages);
+  const getCachedMessages = useTaskStore((state) => state.getCachedMessages);
 
   const loadChat = async () => {
     try {
@@ -29,7 +32,13 @@ export default function ChatScreen() {
       setError(null);
       const nextRoom = await tasks.getRequestChatRoom(route.params.requestId);
       setRoom(nextRoom);
-      setMessages(await tasks.getMessages(nextRoom._id));
+      const cachedMessages = await getCachedMessages(nextRoom._id);
+      if (cachedMessages.length) {
+        setMessages(cachedMessages);
+      }
+      const nextMessages = await tasks.getMessages(nextRoom._id);
+      setMessages(nextMessages);
+      await cacheMessages(nextRoom._id, nextMessages);
     } catch (caught: any) {
       setError(caught.message);
     } finally {
@@ -56,9 +65,15 @@ export default function ChatScreen() {
 
       socket.on("message:new", (message: Message) => {
         if (message.chatRoomId === room._id) {
-          setMessages((current) =>
-            current.some((item) => item._id === message._id) ? current : [message, ...current]
-          );
+          setMessages((current) => {
+            if (current.some((item) => item._id === message._id)) {
+              return current;
+            }
+
+            const nextMessages = [message, ...current];
+            cacheMessages(room._id, nextMessages);
+            return nextMessages;
+          });
           socket.emit("message:seen", { chatRoomId: room._id, messageIds: [message._id] });
         }
       });
@@ -82,7 +97,7 @@ export default function ChatScreen() {
       socket?.off("message:new");
       socket?.off("chat:typing");
     };
-  }, [room?._id, user?._id]);
+  }, [cacheMessages, room?._id, user?._id]);
 
   const updateDraft = (value: string) => {
     setDraft(value);
@@ -103,7 +118,11 @@ export default function ChatScreen() {
     });
     realtime.getSocket()?.emit("chat:typing", { chatRoomId: room._id, isTyping: false });
     setDraft("");
-    setMessages((current) => [sent, ...current]);
+    setMessages((current) => {
+      const nextMessages = [sent, ...current];
+      cacheMessages(room._id, nextMessages);
+      return nextMessages;
+    });
   };
 
   return (

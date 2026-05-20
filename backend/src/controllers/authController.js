@@ -23,6 +23,8 @@ const toUserResponse = (user) => ({
   verified: user.verified,
   reliabilityScore: user.reliabilityScore,
   ratingAverage: user.ratingAverage,
+  totalRatings: user.totalRatings,
+  completedTasksCount: user.completedTasksCount,
   createdAt: user.createdAt,
   updatedAt: user.updatedAt,
 });

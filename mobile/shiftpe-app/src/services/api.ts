@@ -1,10 +1,10 @@
 import { create, AxiosError } from "axios";
 import Constants from "expo-constants";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Platform } from "react-native";
 
 import { storageKeys } from "../constants/storage";
 import { ApiResponse } from "../types/auth";
+import { storage } from "../utils/storage";
 
 const trimTrailingSlash = (value: string) => value.replace(/\/+$/, "");
 
@@ -86,7 +86,7 @@ export const unwrapApiResponse = <T>(payload: T | ApiResponse<T>): T => {
 };
 
 export const clearStoredAuth = async () => {
-  await AsyncStorage.multiRemove([
+  await storage.multiRemove([
     storageKeys.authToken,
     storageKeys.authUser,
     storageKeys.pendingAuth,
@@ -95,7 +95,7 @@ export const clearStoredAuth = async () => {
 
 API.interceptors.request.use(
   async (config) => {
-    const token = await AsyncStorage.getItem(storageKeys.authToken);
+    const token = await storage.getString(storageKeys.authToken);
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }

@@ -5,18 +5,15 @@ import React, {
   useContext,
   useEffect,
   useMemo,
-  useState,
 } from "react";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import type { FirebaseAuthApplicationVerifier } from "expo-firebase-recaptcha";
 import { signOut } from "firebase/auth";
 
-import { storageKeys } from "../constants/storage";
 import { AuthUser, UserRole, VerifyOtpPayload } from "../types/auth";
 import { auth } from "../services/auth";
-import { clearStoredAuth } from "../services/api";
 import { firebaseAuth } from "../config/firebase";
 import { phoneOtpService } from "../services/phoneOtpService";
+import { useAuthStore } from "../store/authStore";
 
 type AuthStep = "checking" | "signedOut" | "otpPending" | "rolePending" | "signedIn";
 
@@ -49,72 +46,21 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const parseStoredUser = (value: string | null) => {
-  if (!value) return null;
-  return JSON.parse(value) as AuthUser;
-};
-
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const [user, setUser] = useState<AuthUser | null>(null);
-  const [token, setToken] = useState<string | null>(null);
-  const [pendingAuth, setPendingAuth] = useState<PendingAuth | null>(null);
-  const [step, setStep] = useState<AuthStep>("checking");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const persistSession = useCallback(async (nextToken: string, nextUser: AuthUser) => {
-    if (!nextToken || !nextUser) {
-      throw new Error("Login response was incomplete. Please try again.");
-    }
-
-    await AsyncStorage.multiSet([
-      [storageKeys.authToken, nextToken],
-      [storageKeys.authUser, JSON.stringify(nextUser)],
-    ]);
-    await AsyncStorage.removeItem(storageKeys.pendingAuth);
-    setToken(nextToken);
-    setUser(nextUser);
-    setPendingAuth(null);
-    setStep("signedIn");
-  }, []);
-
-  const restoreSession = useCallback(async () => {
-    try {
-      setLoading(true);
-      const [[, storedToken], [, storedUser], [, storedPending]] =
-        await AsyncStorage.multiGet([
-          storageKeys.authToken,
-          storageKeys.authUser,
-          storageKeys.pendingAuth,
-        ]);
-
-      if (storedToken && storedUser) {
-        const restoredUser = await auth.getMe();
-        await AsyncStorage.setItem(
-          storageKeys.authUser,
-          JSON.stringify(restoredUser || parseStoredUser(storedUser))
-        );
-        setToken(storedToken);
-        setUser(restoredUser);
-        setStep("signedIn");
-        return;
-      }
-
-      if (storedPending) {
-        const restoredPending = JSON.parse(storedPending) as PendingAuth;
-        setPendingAuth(restoredPending);
-        setStep(restoredPending.firebaseIdToken ? "rolePending" : "otpPending");
-        return;
-      }
-
-      setStep("signedOut");
-    } catch {
-      setStep("signedOut");
-      setError("Could not restore your session.");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const {
+    user,
+    token,
+    pendingAuth,
+    step,
+    loading,
+    error,
+    login,
+    logout: storeLogout,
+    restoreSession,
+    setPendingAuth,
+    setError,
+    setLoading,
+  } = useAuthStore();
 
   useEffect(() => {
     restoreSession();
@@ -126,9 +72,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setLoading(true);
       setError(null);
       const pending = await phoneOtpService.sendOtp(phone, verifier);
-      await AsyncStorage.setItem(storageKeys.pendingAuth, JSON.stringify(pending));
-      setPendingAuth(pending);
-      setStep("otpPending");
+      await setPendingAuth(pending);
     } catch (caught: any) {
       setError(caught.message);
       throw caught;
@@ -136,7 +80,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setLoading(false);
     }
     },
-    []
+    [setError, setLoading, setPendingAuth]
   );
 
   const verifyOtp = useCallback(async (otpOrIdToken: string) => {
@@ -164,16 +108,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         firebaseIdToken,
       };
 
-      await AsyncStorage.setItem(storageKeys.pendingAuth, JSON.stringify(nextPending));
-      setPendingAuth(nextPending);
-      setStep("rolePending");
+      await setPendingAuth(nextPending);
     } catch (caught: any) {
       setError(caught.message);
       throw caught;
     } finally {
       setLoading(false);
     }
-  }, [pendingAuth]);
+  }, [pendingAuth, setError, setLoading, setPendingAuth]);
 
   const completeRoleProfile = useCallback(
     async (input: {
@@ -197,7 +139,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         };
 
         const response = await auth.verifyOtp(payload);
-        await persistSession(response.token, response.user);
+        await login(response.user, response.token);
       } catch (caught: any) {
         setError(caught.message);
         throw caught;
@@ -205,16 +147,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setLoading(false);
       }
     },
-    [pendingAuth, persistSession]
+    [login, pendingAuth, setError, setLoading]
   );
 
   const logout = useCallback(async () => {
-    await Promise.allSettled([signOut(firebaseAuth), clearStoredAuth()]);
-    setToken(null);
-    setUser(null);
-    setPendingAuth(null);
-    setStep("signedOut");
-  }, []);
+    await Promise.allSettled([signOut(firebaseAuth), storeLogout()]);
+  }, [storeLogout]);
 
   const value = useMemo(
     () => ({
@@ -241,6 +179,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       verifyOtp,
       completeRoleProfile,
       logout,
+      setError,
     ]
   );
 
