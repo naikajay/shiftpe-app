@@ -13,7 +13,6 @@ export default function ProfileScreen() {
   const { user, logout } = useAuth();
   const [fullName, setFullName] = useState(user?.fullName ?? "");
   const [skills, setSkills] = useState(user?.skills?.join(", ") ?? "");
-  const [hourlyRate, setHourlyRate] = useState(String(user?.hourlyRate || ""));
   const [isAvailable, setIsAvailable] = useState(user?.isAvailable ?? true);
   const [aadhaarUrl, setAadhaarUrl] = useState("");
   const [panUrl, setPanUrl] = useState("");
@@ -31,7 +30,6 @@ export default function ProfileScreen() {
           .split(",")
           .map((item) => item.trim())
           .filter(Boolean),
-        hourlyRate: hourlyRate ? Number(hourlyRate) : 0,
         isAvailable,
       });
       Alert.alert("Profile", "Profile updated.");
@@ -75,12 +73,6 @@ export default function ProfileScreen() {
       <View style={{ gap: spacing.md }}>
         <AppTextInput label="Full name" value={fullName} onChangeText={setFullName} />
         <AppTextInput label="Skills" value={skills} onChangeText={setSkills} placeholder="delivery, packing" />
-        <AppTextInput
-          label="Hourly rate"
-          value={hourlyRate}
-          onChangeText={setHourlyRate}
-          keyboardType="numeric"
-        />
         <View
           style={{
             alignItems: "center",

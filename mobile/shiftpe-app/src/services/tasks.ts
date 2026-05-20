@@ -27,7 +27,6 @@ export interface UpdateProfilePayload {
   fullName?: string;
   profileImage?: string;
   skills?: string[];
-  hourlyRate?: number;
   location?: AuthUser["location"];
   isAvailable?: boolean;
 }

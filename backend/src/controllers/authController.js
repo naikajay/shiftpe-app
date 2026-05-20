@@ -16,7 +16,6 @@ const toUserResponse = (user) => ({
   role: user.role,
   profileImage: user.profileImage,
   skills: user.skills,
-  hourlyRate: user.hourlyRate,
   location: user.location,
   isWorking: user.isWorking,
   isAvailable: user.isAvailable,
@@ -54,7 +53,6 @@ const buildUserPatch = (body, role) => {
     "fullName",
     "profileImage",
     "skills",
-    "hourlyRate",
     "location",
   ].forEach((field) => {
     if (body[field] !== undefined) {
@@ -151,7 +149,7 @@ const refreshToken = asyncHandler(async (req, res) => {
 });
 
 const updateMe = asyncHandler(async (req, res) => {
-  const allowedFields = ["fullName", "profileImage", "skills", "hourlyRate", "location", "isAvailable"];
+  const allowedFields = ["fullName", "profileImage", "skills", "location", "isAvailable"];
   const patch = {};
 
   allowedFields.forEach((field) => {

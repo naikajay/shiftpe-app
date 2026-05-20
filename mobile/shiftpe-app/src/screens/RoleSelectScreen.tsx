@@ -18,7 +18,6 @@ export default function RoleSelectScreen() {
   const [fullName, setFullName] = useState("");
   const [role, setRole] = useState<UserRole>("worker");
   const [skills, setSkills] = useState("");
-  const [hourlyRate, setHourlyRate] = useState("");
   const { completeRoleProfile, loading, error, clearError } = useAuth();
 
   const handleSubmit = async () => {
@@ -34,7 +33,6 @@ export default function RoleSelectScreen() {
                 .map((item) => item.trim())
                 .filter(Boolean)
             : [],
-        hourlyRate: hourlyRate ? Number(hourlyRate) : 0,
       });
     } catch (caught: any) {
       Alert.alert("Profile", caught.message);
@@ -93,14 +91,6 @@ export default function RoleSelectScreen() {
             value={skills}
             onChangeText={setSkills}
             placeholder="Packing, delivery, retail"
-            editable={!loading}
-          />
-          <AppTextInput
-            label="Hourly rate"
-            value={hourlyRate}
-            onChangeText={setHourlyRate}
-            keyboardType="numeric"
-            placeholder="150"
             editable={!loading}
           />
         </>

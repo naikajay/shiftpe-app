@@ -79,11 +79,6 @@ const userSchema = new mongoose.Schema(
         message: "A user can have at most 30 skills",
       },
     },
-    hourlyRate: {
-      type: Number,
-      default: 0,
-      min: 0,
-    },
     location: pointSchema,
     isWorking: {
       type: Boolean,

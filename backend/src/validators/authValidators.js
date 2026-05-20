@@ -73,13 +73,6 @@ const validateUserProfileInput = (body, options = {}) => {
     }
   }
 
-  if (
-    body.hourlyRate != null &&
-    (typeof body.hourlyRate !== "number" || body.hourlyRate < 0)
-  ) {
-    errors.push("hourlyRate must be a non-negative number");
-  }
-
   const locationError = validateLocation(body.location);
   if (locationError) {
     errors.push(locationError);
@@ -102,6 +95,5 @@ module.exports = {
     body("fullName").optional({ checkFalsy: true }).trim().isLength({ min: 2, max: 80 }),
     body("profileImage").optional({ checkFalsy: true }).trim().isURL(),
     body("skills").optional({ checkFalsy: true }).isArray({ max: 30 }),
-    body("hourlyRate").optional({ checkFalsy: true }).isFloat({ min: 0 }).toFloat(),
   ],
 };

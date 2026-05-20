@@ -8,7 +8,7 @@ Set these environment variables:
 
 - `NODE_ENV=production`
 - `PORT`
-- `MONGO_URI`
+- `MONGO_URI` as a MongoDB Atlas SRV URI, for example `mongodb+srv://<username>:<password>@<cluster-url>/shiftpe?retryWrites=true&w=majority`
 - `JWT_SECRET`
 - `JWT_EXPIRES_IN`
 - `CORS_ORIGIN`
@@ -25,7 +25,7 @@ npm install
 npm start
 ```
 
-Use MongoDB Atlas. For true MongoDB transactions, use a replica set or sharded cluster.
+Use MongoDB Atlas, not a local MongoDB instance. For true MongoDB transactions, use an Atlas replica set or sharded cluster.
 
 ## Mobile
 

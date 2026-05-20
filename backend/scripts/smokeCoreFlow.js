@@ -112,7 +112,7 @@ const run = async () => {
     await request("/auth/me", {
       method: "PATCH",
       headers: { authorization: `Bearer ${workerToken}` },
-      body: JSON.stringify({ hourlyRate: 150 }),
+      body: JSON.stringify({ skills: ["testing"] }),
     });
 
     const room = await ChatRoom.findOne({ taskId: taskData.task._id });

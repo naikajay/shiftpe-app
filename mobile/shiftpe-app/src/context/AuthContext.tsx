@@ -42,7 +42,6 @@ interface AuthContextType {
     fullName: string;
     role: UserRole;
     skills?: string[];
-    hourlyRate?: number;
   }) => Promise<void>;
   logout: () => Promise<void>;
   clearError: () => void;
@@ -181,7 +180,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       fullName: string;
       role: UserRole;
       skills?: string[];
-      hourlyRate?: number;
     }) => {
       try {
         setLoading(true);
@@ -196,7 +194,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           fullName: input.fullName.trim(),
           role: input.role,
           skills: input.skills,
-          hourlyRate: input.hourlyRate,
         };
 
         const response = await auth.verifyOtp(payload);

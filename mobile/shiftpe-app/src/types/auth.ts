@@ -7,7 +7,6 @@ export interface AuthUser {
   role: UserRole;
   profileImage?: string;
   skills?: string[];
-  hourlyRate?: number;
   location?: {
     type: "Point";
     coordinates: [number, number];
@@ -26,7 +25,6 @@ export interface VerifyOtpPayload {
   role?: UserRole;
   profileImage?: string;
   skills?: string[];
-  hourlyRate?: number;
   location?: {
     type: "Point";
     coordinates: [number, number];

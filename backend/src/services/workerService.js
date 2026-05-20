@@ -9,7 +9,6 @@ const serializeUser = (user) => ({
   role: user.role,
   profileImage: user.profileImage,
   skills: user.skills,
-  hourlyRate: user.hourlyRate,
   location: user.location,
   isWorking: user.isWorking,
   isAvailable: user.isAvailable,
@@ -24,7 +23,7 @@ const serializeUser = (user) => ({
 });
 
 const updateProfile = async (userId, payload) => {
-  const allowedFields = ["fullName", "profileImage", "skills", "hourlyRate", "location", "isAvailable"];
+  const allowedFields = ["fullName", "profileImage", "skills", "location", "isAvailable"];
   const patch = {};
 
   allowedFields.forEach((field) => {
