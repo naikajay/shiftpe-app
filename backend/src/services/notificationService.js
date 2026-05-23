@@ -1,5 +1,32 @@
 const Notification = require("../models/Notification");
 const { emitToUser } = require("../sockets/socket");
+const User = require("../models/User");
+
+const sendExpoPush = async (userId, notification) => {
+  const user = await User.findById(userId).select("expoPushToken");
+
+  if (!user?.expoPushToken || !user.expoPushToken.startsWith("ExponentPushToken")) {
+    return;
+  }
+
+  await fetch("https://exp.host/--/api/v2/push/send", {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      to: user.expoPushToken,
+      title: notification.title,
+      body: notification.message,
+      data: {
+        type: notification.type,
+        entityType: notification.entityType,
+        entityId: notification.entityId,
+      },
+    }),
+  }).catch(() => undefined);
+};
 
 const createNotification = async (payload, options = {}) => {
   const notification = await Notification.create([payload], {
@@ -8,6 +35,7 @@ const createNotification = async (payload, options = {}) => {
 
   const created = notification[0];
   emitToUser(String(created.userId), "notification:new", created);
+  sendExpoPush(created.userId, created);
   return created;
 };
 
@@ -23,6 +51,7 @@ const createNotifications = async (payloads, options = {}) => {
 
   notifications.forEach((notification) => {
     emitToUser(String(notification.userId), "notification:new", notification);
+    sendExpoPush(notification.userId, notification);
   });
 
   return notifications;
@@ -51,9 +80,24 @@ const markNotificationAsRead = async (userId, notificationId) => {
   );
 };
 
+const markNotificationsAsRead = async (userId, notificationIds = []) => {
+  const filter = { userId, read: false };
+
+  if (notificationIds.length) {
+    filter._id = { $in: notificationIds };
+  }
+
+  await Notification.updateMany(filter, {
+    $set: { read: true, readAt: new Date() },
+  });
+
+  return getUserNotifications(userId, { read: false });
+};
+
 module.exports = {
   createNotification,
   createNotifications,
   getUserNotifications,
   markNotificationAsRead,
+  markNotificationsAsRead,
 };

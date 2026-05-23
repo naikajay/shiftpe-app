@@ -17,6 +17,14 @@ const getNearbyTasks = asyncHandler(async (req, res) => {
   });
 });
 
+const getRecommendedTasks = asyncHandler(async (req, res) => {
+  const tasks = await taskService.getRecommendedTasks(req.user, req.query);
+  return successResponse(res, 200, "Recommended tasks fetched successfully", {
+    count: tasks.length,
+    tasks: tasks.map(taskService.serializeTask),
+  });
+});
+
 const getTaskById = asyncHandler(async (req, res) => {
   const task = await taskService.getTaskById(req.params.taskId, {
     openOnly: false,
@@ -50,6 +58,7 @@ const getProviderTasks = asyncHandler(async (req, res) => {
 module.exports = {
   createTask,
   getNearbyTasks,
+  getRecommendedTasks,
   exploreTasks: getNearbyTasks,
   getTaskById,
   updateTaskStatus,

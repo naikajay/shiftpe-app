@@ -6,6 +6,7 @@ import { storage } from "../utils/storage";
 
 const taskCacheKeys = {
   nearbyTasks: "shiftpe.cache.nearbyTasks",
+  recommendedTasks: "shiftpe.cache.recommendedTasks",
   activeTask: "shiftpe.cache.activeTask",
   activeRequest: "shiftpe.cache.activeRequest",
   messages: (chatRoomId: string) => `shiftpe.cache.messages.${chatRoomId}`,
@@ -13,6 +14,7 @@ const taskCacheKeys = {
 
 interface TaskStoreState {
   tasks: Task[];
+  recommendedTasks: Task[];
   activeTask: Task | null;
   activeRequest: TaskRequest | null;
   loadingTasks: boolean;
@@ -23,8 +25,10 @@ interface TaskStoreState {
   loadDashboard: (query: ExploreTasksQuery) => Promise<void>;
   refreshDashboard: (query: ExploreTasksQuery) => Promise<void>;
   applyForTask: (taskId: string, query: ExploreTasksQuery) => Promise<void>;
+  swipeTask: (taskId: string, action: "interested" | "ignored", query: ExploreTasksQuery) => Promise<void>;
   markActiveWorkComplete: (query: ExploreTasksQuery) => Promise<void>;
   upsertTask: (task: Task) => Promise<void>;
+  removeTask: (taskId: string) => Promise<void>;
   cacheMessages: (chatRoomId: string, messages: Message[]) => Promise<void>;
   getCachedMessages: (chatRoomId: string) => Promise<Message[]>;
   clearError: () => void;
@@ -32,25 +36,29 @@ interface TaskStoreState {
 
 const saveDashboardCache = async (
   nextTasks: Task[],
+  nextRecommendedTasks: Task[],
   nextActiveTask: Task | null,
   nextActiveRequest: TaskRequest | null
 ) => {
   await Promise.all([
     storage.setJson(taskCacheKeys.nearbyTasks, nextTasks),
+    storage.setJson(taskCacheKeys.recommendedTasks, nextRecommendedTasks),
     storage.setJson(taskCacheKeys.activeTask, nextActiveTask),
     storage.setJson(taskCacheKeys.activeRequest, nextActiveRequest),
   ]);
 };
 
 const fetchDashboard = async (query: ExploreTasksQuery) => {
-  const [nextTasks, nextActiveTask, requests] = await Promise.all([
+  const [nextTasks, nextRecommendedTasks, nextActiveTask, requests] = await Promise.all([
     taskService.getNearbyTasks(query),
+    taskService.getRecommendedTasks(query),
     taskService.getActiveTask(),
     taskService.getWorkerRequests("accepted"),
   ]);
 
   return {
     nextTasks,
+    nextRecommendedTasks,
     nextActiveTask,
     nextActiveRequest: requests[0] ?? null,
   };
@@ -58,6 +66,7 @@ const fetchDashboard = async (query: ExploreTasksQuery) => {
 
 export const useTaskStore = create<TaskStoreState>((set, get) => ({
   tasks: [],
+  recommendedTasks: [],
   activeTask: null,
   activeRequest: null,
   loadingTasks: false,
@@ -66,14 +75,16 @@ export const useTaskStore = create<TaskStoreState>((set, get) => ({
   error: null,
 
   async hydrateCache() {
-    const [cachedTasks, cachedActiveTask, cachedActiveRequest] = await Promise.all([
+    const [cachedTasks, cachedRecommendedTasks, cachedActiveTask, cachedActiveRequest] = await Promise.all([
       storage.getJson<Task[]>(taskCacheKeys.nearbyTasks),
+      storage.getJson<Task[]>(taskCacheKeys.recommendedTasks),
       storage.getJson<Task | null>(taskCacheKeys.activeTask),
       storage.getJson<TaskRequest | null>(taskCacheKeys.activeRequest),
     ]);
 
     set({
       tasks: cachedTasks ?? [],
+      recommendedTasks: cachedRecommendedTasks ?? [],
       activeTask: cachedActiveTask ?? null,
       activeRequest: cachedActiveRequest ?? null,
     });
@@ -83,9 +94,9 @@ export const useTaskStore = create<TaskStoreState>((set, get) => ({
     set({ loadingTasks: true, error: null });
     try {
       await get().hydrateCache();
-      const { nextTasks, nextActiveTask, nextActiveRequest } = await fetchDashboard(query);
-      await saveDashboardCache(nextTasks, nextActiveTask, nextActiveRequest);
-      set({ tasks: nextTasks, activeTask: nextActiveTask, activeRequest: nextActiveRequest });
+      const { nextTasks, nextRecommendedTasks, nextActiveTask, nextActiveRequest } = await fetchDashboard(query);
+      await saveDashboardCache(nextTasks, nextRecommendedTasks, nextActiveTask, nextActiveRequest);
+      set({ tasks: nextTasks, recommendedTasks: nextRecommendedTasks, activeTask: nextActiveTask, activeRequest: nextActiveRequest });
     } catch (caught: any) {
       set({ error: caught.message });
     } finally {
@@ -96,9 +107,9 @@ export const useTaskStore = create<TaskStoreState>((set, get) => ({
   async refreshDashboard(query) {
     set({ refreshing: true, error: null });
     try {
-      const { nextTasks, nextActiveTask, nextActiveRequest } = await fetchDashboard(query);
-      await saveDashboardCache(nextTasks, nextActiveTask, nextActiveRequest);
-      set({ tasks: nextTasks, activeTask: nextActiveTask, activeRequest: nextActiveRequest });
+      const { nextTasks, nextRecommendedTasks, nextActiveTask, nextActiveRequest } = await fetchDashboard(query);
+      await saveDashboardCache(nextTasks, nextRecommendedTasks, nextActiveTask, nextActiveRequest);
+      set({ tasks: nextTasks, recommendedTasks: nextRecommendedTasks, activeTask: nextActiveTask, activeRequest: nextActiveRequest });
     } catch (caught: any) {
       set({ error: caught.message });
     } finally {
@@ -111,6 +122,23 @@ export const useTaskStore = create<TaskStoreState>((set, get) => ({
     try {
       await taskService.applyForTask(taskId);
       await get().refreshDashboard(query);
+    } catch (caught: any) {
+      set({ error: caught.message });
+      throw caught;
+    } finally {
+      set({ applyingTaskId: null });
+    }
+  },
+
+  async swipeTask(taskId, action, query) {
+    set({ applyingTaskId: action === "interested" ? taskId : null, error: null });
+    try {
+      await taskService.swipe(taskId, action);
+      await get().removeTask(taskId);
+
+      if (action === "interested") {
+        await get().refreshDashboard(query);
+      }
     } catch (caught: any) {
       set({ error: caught.message });
       throw caught;
@@ -139,7 +167,16 @@ export const useTaskStore = create<TaskStoreState>((set, get) => ({
   },
 
   async upsertTask(task) {
-    const nextTasks = get().tasks.map((item) => (item._id === task._id ? task : item));
+    const exists = get().tasks.some((item) => item._id === task._id);
+    const nextTasks = exists
+      ? get().tasks.map((item) => (item._id === task._id ? task : item))
+      : [task, ...get().tasks];
+    await storage.setJson(taskCacheKeys.nearbyTasks, nextTasks);
+    set({ tasks: nextTasks });
+  },
+
+  async removeTask(taskId) {
+    const nextTasks = get().tasks.filter((item) => item._id !== taskId);
     await storage.setJson(taskCacheKeys.nearbyTasks, nextTasks);
     set({ tasks: nextTasks });
   },

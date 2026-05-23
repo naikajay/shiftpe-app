@@ -1,49 +1,49 @@
-import { RouteProp, useRoute } from "@react-navigation/native";
-import { useEffect, useState } from "react";
-import { FlatList, Text, View } from "react-native";
+import { RouteProp, useNavigation, useRoute } from "@react-navigation/native";
+import { useEffect, useMemo, useState } from "react";
+import { FlatList, KeyboardAvoidingView, Platform, Text, TouchableOpacity, View } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 
-import AppButton from "../components/AppButton";
 import AppTextInput from "../components/AppTextInput";
+import ChatBubble from "../components/chat/ChatBubble";
 import ErrorMessage from "../components/ErrorMessage";
-import ScreenHeader from "../components/ScreenHeader";
-import { colors, radius, spacing, typography } from "../constants/theme";
+import { colors, spacing, typography } from "../constants/theme";
 import { useAuth } from "../context/AuthContext";
 import { RootStackParamList } from "../navigation/AppNavigator";
-import { realtime } from "../services/realtime";
-import { tasks } from "../services/tasks";
-import { useTaskStore } from "../store/taskStore";
-import { ChatRoom, Message } from "../types/task";
+import { useChatStore } from "../store/chatStore";
+import { useSocketStore } from "../store/socketStore";
 
 export default function ChatScreen() {
   const route = useRoute<RouteProp<RootStackParamList, "Chat">>();
+  const navigation = useNavigation();
   const { user } = useAuth();
-  const [room, setRoom] = useState<ChatRoom | null>(null);
-  const [messages, setMessages] = useState<Message[]>([]);
   const [draft, setDraft] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [typing, setTyping] = useState(false);
-  const cacheMessages = useTaskStore((state) => state.cacheMessages);
-  const getCachedMessages = useTaskStore((state) => state.getCachedMessages);
+
+  const room = useChatStore((state) => state.roomsByRequestId[route.params.requestId]);
+  const messagesByRoomId = useChatStore((state) => state.messagesByRoomId);
+  const typingByRoomId = useChatStore((state) => state.typingByRoomId);
+  const onlineByRoomId = useChatStore((state) => state.onlineByRoomId);
+  const seenAtByRoomId = useChatStore((state) => state.seenAtByRoomId);
+  const loading = useChatStore((state) => state.loading);
+  const sending = useChatStore((state) => state.sending);
+  const error = useChatStore((state) => state.error);
+  const loadRequestChat = useChatStore((state) => state.loadRequestChat);
+  const loadMessages = useChatStore((state) => state.loadMessages);
+  const joinRoom = useChatStore((state) => state.joinRoom);
+  const sendMessage = useChatStore((state) => state.sendMessage);
+  const sendTyping = useChatStore((state) => state.sendTyping);
+  const markSeen = useChatStore((state) => state.markSeen);
+  const connected = useSocketStore((state) => state.connected);
+
+  const roomId = room?._id;
+  const messages = useMemo(() => (roomId ? messagesByRoomId[roomId] ?? [] : []), [messagesByRoomId, roomId]);
+  const typing = roomId ? Boolean(typingByRoomId[roomId]) : false;
+  const online = roomId ? Boolean(onlineByRoomId[roomId]) : connected;
+  const seenAt = roomId ? seenAtByRoomId[roomId] : null;
 
   const loadChat = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const nextRoom = await tasks.getRequestChatRoom(route.params.requestId);
-      setRoom(nextRoom);
-      const cachedMessages = await getCachedMessages(nextRoom._id);
-      if (cachedMessages.length) {
-        setMessages(cachedMessages);
-      }
-      const nextMessages = await tasks.getMessages(nextRoom._id);
-      setMessages(nextMessages);
-      await cacheMessages(nextRoom._id, nextMessages);
-    } catch (caught: any) {
-      setError(caught.message);
-    } finally {
-      setLoading(false);
-    }
+    const nextRoom = await loadRequestChat(route.params.requestId);
+    await loadMessages(nextRoom._id);
+    await joinRoom(nextRoom._id);
   };
 
   useEffect(() => {
@@ -52,82 +52,45 @@ export default function ChatScreen() {
   }, [route.params.requestId]);
 
   useEffect(() => {
-    if (!room?._id) return;
-
-    let active = true;
-    let typingTimer: ReturnType<typeof setTimeout>;
-
-    realtime.connect().then((socket) => {
-      if (!active) return;
-
-      socket.emit("chat:join", { chatRoomId: room._id });
-      socket.emit("message:seen", { chatRoomId: room._id });
-
-      socket.on("message:new", (message: Message) => {
-        if (message.chatRoomId === room._id) {
-          setMessages((current) => {
-            if (current.some((item) => item._id === message._id)) {
-              return current;
-            }
-
-            const nextMessages = [message, ...current];
-            cacheMessages(room._id, nextMessages);
-            return nextMessages;
-          });
-          socket.emit("message:seen", { chatRoomId: room._id, messageIds: [message._id] });
-        }
-      });
-
-      socket.on(
-        "chat:typing",
-        (payload: { chatRoomId: string; userId: string; isTyping: boolean }) => {
-          if (payload.chatRoomId === room._id && payload.userId !== user?._id) {
-            setTyping(payload.isTyping);
-            clearTimeout(typingTimer);
-            typingTimer = setTimeout(() => setTyping(false), 1800);
-          }
-        }
-      );
-    });
-
-    return () => {
-      active = false;
-      clearTimeout(typingTimer);
-      const socket = realtime.getSocket();
-      socket?.off("message:new");
-      socket?.off("chat:typing");
-    };
-  }, [cacheMessages, room?._id, user?._id]);
+    if (!roomId) return;
+    joinRoom(roomId);
+    markSeen(roomId);
+  }, [joinRoom, markSeen, roomId]);
 
   const updateDraft = (value: string) => {
     setDraft(value);
-    if (room?._id) {
-      realtime.getSocket()?.emit("chat:typing", {
-        chatRoomId: room._id,
-        isTyping: value.trim().length > 0,
-      });
+    if (roomId) {
+      sendTyping(roomId, value.trim().length > 0);
     }
   };
 
   const send = async () => {
-    if (!room || !draft.trim()) return;
-
-    const sent = await tasks.sendMessage({
-      chatRoomId: room._id,
-      message: draft.trim(),
-    });
-    realtime.getSocket()?.emit("chat:typing", { chatRoomId: room._id, isTyping: false });
+    if (!roomId || !draft.trim()) return;
+    const text = draft.trim();
     setDraft("");
-    setMessages((current) => {
-      const nextMessages = [sent, ...current];
-      cacheMessages(room._id, nextMessages);
-      return nextMessages;
-    });
+    sendTyping(roomId, false);
+    await sendMessage(roomId, text);
   };
 
   return (
-    <View style={{ backgroundColor: colors.surface, flex: 1, padding: spacing.lg, paddingTop: spacing.xl }}>
-      <ScreenHeader eyebrow="Chat" title="Task conversation" subtitle="Coordinate accepted work here." />
+    <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={{ backgroundColor: colors.surface, flex: 1 }}>
+      <View style={{ backgroundColor: colors.white, borderBottomColor: colors.border, borderBottomWidth: 1, padding: spacing.lg, paddingTop: spacing.xl }}>
+        <View style={{ alignItems: "center", flexDirection: "row", gap: spacing.md }}>
+          <TouchableOpacity activeOpacity={0.86} onPress={navigation.goBack} style={iconButtonStyle}>
+            <Ionicons name="chevron-back" color={colors.text} size={23} />
+          </TouchableOpacity>
+          <View style={{ alignItems: "center", backgroundColor: colors.accentSoft, borderRadius: 18, height: 52, justifyContent: "center", width: 52 }}>
+            <Ionicons name="shield-checkmark" color={colors.accent} size={25} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={{ color: colors.text, fontSize: typography.body, fontWeight: "900" }}>Shift chat</Text>
+            <Text style={{ color: colors.success, fontSize: typography.small, fontWeight: "800" }}>
+              {typing ? "Typing..." : online ? "Online now" : "Realtime connecting"}
+            </Text>
+          </View>
+        </View>
+      </View>
+
       <ErrorMessage message={error} />
       <FlatList
         data={messages}
@@ -135,33 +98,38 @@ export default function ChatScreen() {
         keyExtractor={(item) => item._id}
         refreshing={loading}
         onRefresh={loadChat}
-        contentContainerStyle={{ gap: spacing.sm, paddingVertical: spacing.lg }}
+        contentContainerStyle={{ gap: spacing.sm, padding: spacing.lg }}
         renderItem={({ item }) => {
           const mine = typeof item.senderId === "string" ? item.senderId === user?._id : item.senderId._id === user?._id;
-          return (
-            <View
-              style={{
-                alignSelf: mine ? "flex-end" : "flex-start",
-                backgroundColor: mine ? colors.navy : colors.white,
-                borderRadius: radius.md,
-                maxWidth: "82%",
-                padding: spacing.md,
-              }}
-            >
-              <Text style={{ color: mine ? colors.white : colors.text, fontSize: typography.body }}>
-                {item.message}
-              </Text>
-            </View>
-          );
+          return <ChatBubble message={item.message} mine={mine} />;
         }}
       />
-      {typing ? (
-        <Text style={{ color: colors.muted, fontSize: typography.small }}>Typing...</Text>
+      {seenAt ? (
+        <Text style={{ color: colors.muted, fontSize: typography.small, paddingHorizontal: spacing.lg, textAlign: "right" }}>Seen</Text>
       ) : null}
-      <View style={{ gap: spacing.sm }}>
-        <AppTextInput label="Message" value={draft} onChangeText={updateDraft} />
-        <AppButton label="Send" onPress={send} disabled={!draft.trim() || !room} />
+
+      <View style={{ backgroundColor: colors.white, borderTopColor: colors.border, borderTopWidth: 1, flexDirection: "row", gap: spacing.sm, padding: spacing.md }}>
+        <View style={{ flex: 1 }}>
+          <AppTextInput label="Message" value={draft} onChangeText={updateDraft} placeholder="Ask about arrival, dress code, payout..." editable={!sending} />
+        </View>
+        <TouchableOpacity
+          activeOpacity={0.86}
+          disabled={!draft.trim() || !roomId || sending}
+          onPress={send}
+          style={{ alignItems: "center", alignSelf: "flex-end", backgroundColor: draft.trim() && roomId && !sending ? colors.accent : colors.border, borderRadius: 999, height: 54, justifyContent: "center", width: 54 }}
+        >
+          <Ionicons name="send" color={colors.white} size={20} />
+        </TouchableOpacity>
       </View>
-    </View>
+    </KeyboardAvoidingView>
   );
 }
+
+const iconButtonStyle = {
+  alignItems: "center" as const,
+  backgroundColor: colors.surface,
+  borderRadius: 999,
+  height: 44,
+  justifyContent: "center" as const,
+  width: 44,
+};

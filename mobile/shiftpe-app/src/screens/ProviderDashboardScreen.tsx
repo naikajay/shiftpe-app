@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Alert, RefreshControl, ScrollView, Text, TouchableOpacity, View } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 
@@ -7,7 +8,7 @@ import AppButton from "../components/AppButton";
 import AppTextInput from "../components/AppTextInput";
 import EmptyState from "../components/EmptyState";
 import ErrorMessage from "../components/ErrorMessage";
-import ScreenHeader from "../components/ScreenHeader";
+import ScreenIntro from "../components/design/ScreenIntro";
 import { colors, radius, spacing, typography } from "../constants/theme";
 import { useAuth } from "../context/AuthContext";
 import { RootStackParamList } from "../navigation/AppNavigator";
@@ -129,21 +130,50 @@ export default function ProviderDashboardScreen() {
   return (
     <ScrollView
       style={{ flex: 1, backgroundColor: colors.surface }}
-      contentContainerStyle={{ gap: spacing.lg, padding: spacing.lg, paddingTop: spacing.xl }}
-      refreshControl={<RefreshControl refreshing={loading} onRefresh={loadDashboard} />}
+      contentContainerStyle={{ gap: spacing.lg, padding: spacing.lg, paddingBottom: spacing.xl, paddingTop: spacing.xl }}
+      refreshControl={<RefreshControl refreshing={loading} onRefresh={loadDashboard} tintColor={colors.accent} />}
     >
-      <ScreenHeader
-        eyebrow="Customer dashboard"
-        title={`Hi, ${user?.fullName?.split(" ")[0] ?? "there"}`}
-        subtitle="Post work, approve workers, chat, pay, and rate completed jobs."
-      />
+      <View style={{ alignItems: "center", flexDirection: "row", justifyContent: "space-between" }}>
+        <ScreenIntro
+          eyebrow="Hirer workspace"
+          title={`Hire fast, ${user?.fullName?.split(" ")[0] ?? "there"}`}
+          subtitle="Post urgent shifts, approve matches, chat live, and close payouts."
+        />
+        <TouchableOpacity
+          activeOpacity={0.86}
+          onPress={logout}
+          style={{ alignItems: "center", backgroundColor: colors.white, borderRadius: 999, height: 46, justifyContent: "center", width: 46 }}
+        >
+          <Ionicons name="log-out-outline" color={colors.text} size={21} />
+        </TouchableOpacity>
+      </View>
 
       <ErrorMessage message={error} />
 
-      <View style={{ backgroundColor: colors.white, borderRadius: radius.lg, gap: spacing.md, padding: spacing.lg }}>
-        <Text style={{ color: colors.text, fontSize: typography.heading, fontWeight: "900" }}>
-          Post a task
-        </Text>
+      <View style={{ backgroundColor: colors.white, borderColor: colors.border, borderRadius: radius.xl, borderWidth: 1, gap: spacing.md, padding: spacing.lg }}>
+        <View style={{ alignItems: "center", flexDirection: "row", justifyContent: "space-between" }}>
+          <View style={{ flex: 1 }}>
+            <Text style={{ color: colors.text, fontSize: 30, fontWeight: "900", lineHeight: 34 }}>
+              Post your first 2 jobs FREE
+            </Text>
+            <Text style={{ color: colors.muted, fontSize: typography.small, marginTop: 6 }}>
+              Publish a shift in under 60 seconds.
+            </Text>
+          </View>
+          <View style={{ alignItems: "center", backgroundColor: colors.accentSoft, borderRadius: 22, height: 74, justifyContent: "center", width: 74 }}>
+            <Text style={{ color: colors.accent, fontSize: 38, fontWeight: "900" }}>2</Text>
+          </View>
+        </View>
+        <View style={{ flexDirection: "row", gap: spacing.sm }}>
+          {["Role", "Timing", "Pay", "Image", "Publish"].map((step, index) => (
+            <View key={step} style={{ flex: 1, gap: 5 }}>
+              <View style={{ backgroundColor: index < 3 ? colors.accent : colors.border, borderRadius: 999, height: 5 }} />
+              <Text style={{ color: index < 3 ? colors.text : colors.muted, fontSize: 10, fontWeight: "900", textAlign: "center" }}>
+                {step}
+              </Text>
+            </View>
+          ))}
+        </View>
         <AppTextInput label="Title" value={title} onChangeText={setTitle} />
         <AppTextInput label="Description" value={description} onChangeText={setDescription} multiline />
         <AppTextInput label="Category" value={category} onChangeText={setCategory} />
@@ -154,7 +184,7 @@ export default function ProviderDashboardScreen() {
           <AppTextInput label="Longitude" value={longitude} onChangeText={setLongitude} keyboardType="numeric" style={{ flex: 1 }} />
           <AppTextInput label="Latitude" value={latitude} onChangeText={setLatitude} keyboardType="numeric" style={{ flex: 1 }} />
         </View>
-        <AppButton label="Post task" onPress={createTask} loading={loading} />
+        <AppButton label="Publish shift" onPress={createTask} loading={loading} />
       </View>
 
       <View style={{ gap: spacing.md }}>
@@ -167,17 +197,26 @@ export default function ProviderDashboardScreen() {
               key={task._id}
               onPress={() => selectTask(task._id)}
               style={{
-                backgroundColor: selectedTaskId === task._id ? colors.navy : colors.white,
-                borderRadius: radius.md,
+                backgroundColor: selectedTaskId === task._id ? colors.text : colors.white,
+                borderColor: selectedTaskId === task._id ? colors.text : colors.border,
+                borderRadius: radius.lg,
+                borderWidth: 1,
                 padding: spacing.md,
               }}
             >
-              <Text style={{ color: selectedTaskId === task._id ? colors.white : colors.text, fontWeight: "900" }}>
-                {task.title}
-              </Text>
-              <Text style={{ color: selectedTaskId === task._id ? colors.white : colors.muted }}>
-                {task.status} - {task.workersJoined}/{task.workersNeeded} workers
-              </Text>
+              <View style={{ alignItems: "center", flexDirection: "row", gap: spacing.md }}>
+                <View style={{ alignItems: "center", backgroundColor: selectedTaskId === task._id ? colors.accent : colors.accentSoft, borderRadius: 16, height: 48, justifyContent: "center", width: 48 }}>
+                  <Ionicons name="flash" color={selectedTaskId === task._id ? colors.white : colors.accent} size={22} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ color: selectedTaskId === task._id ? colors.white : colors.text, fontWeight: "900" }}>
+                    {task.title}
+                  </Text>
+                  <Text style={{ color: selectedTaskId === task._id ? colors.white : colors.muted }}>
+                    {task.status} • {task.workersJoined}/{task.workersNeeded} workers
+                  </Text>
+                </View>
+              </View>
             </TouchableOpacity>
           ))
         ) : (
@@ -191,9 +230,16 @@ export default function ProviderDashboardScreen() {
         </Text>
         {applicants.length ? (
           applicants.map((request) => (
-            <View key={request._id} style={{ backgroundColor: colors.white, borderRadius: radius.md, gap: spacing.sm, padding: spacing.md }}>
-              <Text style={{ color: colors.text, fontWeight: "900" }}>{getWorkerName(request)}</Text>
-              <Text style={{ color: colors.muted }}>{request.status}</Text>
+            <View key={request._id} style={{ backgroundColor: colors.white, borderColor: colors.border, borderRadius: radius.lg, borderWidth: 1, gap: spacing.sm, padding: spacing.md }}>
+              <View style={{ alignItems: "center", flexDirection: "row", gap: spacing.md }}>
+                <View style={{ alignItems: "center", backgroundColor: colors.successSoft, borderRadius: 16, height: 46, justifyContent: "center", width: 46 }}>
+                  <Ionicons name="person" color={colors.success} size={21} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ color: colors.text, fontWeight: "900" }}>{getWorkerName(request)}</Text>
+                  <Text style={{ color: colors.muted, textTransform: "capitalize" }}>{request.status} • realtime applicant</Text>
+                </View>
+              </View>
               {request.status === "pending" ? (
                 <AppButton label="Approve request" onPress={() => accept(request._id)} />
               ) : null}
@@ -217,8 +263,9 @@ export default function ProviderDashboardScreen() {
         </Text>
         {pendingPayments.length ? (
           pendingPayments.map((payment) => (
-            <View key={payment._id} style={{ backgroundColor: colors.white, borderRadius: radius.md, gap: spacing.sm, padding: spacing.md }}>
-              <Text style={{ color: colors.text, fontWeight: "900" }}>INR {payment.amount}</Text>
+            <View key={payment._id} style={{ backgroundColor: colors.white, borderColor: colors.border, borderRadius: radius.lg, borderWidth: 1, gap: spacing.sm, padding: spacing.md }}>
+              <Text style={{ color: colors.success, fontSize: typography.heading, fontWeight: "900" }}>₹{payment.amount}</Text>
+              <Text style={{ color: colors.muted, fontSize: typography.small }}>Pending worker payout</Text>
               <AppButton label="Mark paid" onPress={async () => { await tasks.markPaymentPaid(payment._id); await loadDashboard(); }} />
             </View>
           ))
@@ -256,9 +303,10 @@ export default function ProviderDashboardScreen() {
         </Text>
         {workers.length ? (
           workers.map((worker) => (
-            <View key={worker._id} style={{ backgroundColor: colors.white, borderRadius: radius.md, padding: spacing.md }}>
+            <View key={worker._id} style={{ backgroundColor: colors.white, borderColor: colors.border, borderRadius: radius.lg, borderWidth: 1, gap: spacing.xs, padding: spacing.md }}>
               <Text style={{ color: colors.text, fontWeight: "900" }}>{worker.fullName}</Text>
               <Text style={{ color: colors.muted }}>{worker.skills?.join(", ") || "No skills listed"}</Text>
+              <Text style={{ color: colors.success, fontSize: typography.small, fontWeight: "900" }}>Available now</Text>
             </View>
           ))
         ) : (

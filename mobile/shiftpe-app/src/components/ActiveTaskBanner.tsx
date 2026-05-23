@@ -24,8 +24,8 @@ export default function ActiveTaskBanner({ task, onComplete, onChat, completing 
   return (
     <View
       style={{
-        backgroundColor: task ? colors.navy : colors.white,
-        borderColor: task ? colors.navy : colors.border,
+        backgroundColor: task ? colors.text : colors.white,
+        borderColor: task ? colors.text : colors.border,
         borderRadius: radius.lg,
         borderWidth: 1,
         padding: spacing.lg,
@@ -76,7 +76,7 @@ export default function ActiveTaskBanner({ task, onComplete, onChat, completing 
                 justifyContent: "center",
               }}
             >
-              <Text style={{ color: colors.navy, fontSize: typography.small, fontWeight: "900" }}>
+              <Text style={{ color: colors.accent, fontSize: typography.small, fontWeight: "900" }}>
                 Chat
               </Text>
             </TouchableOpacity>
@@ -94,7 +94,7 @@ export default function ActiveTaskBanner({ task, onComplete, onChat, completing 
             justifyContent: "center",
           }}
         >
-          <Text style={{ color: colors.navy, fontSize: typography.small, fontWeight: "900" }}>
+          <Text style={{ color: colors.accent, fontSize: typography.small, fontWeight: "900" }}>
             {completing ? "Updating..." : "Mark work complete"}
           </Text>
         </TouchableOpacity>

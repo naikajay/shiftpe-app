@@ -5,12 +5,14 @@ const {
   getMe,
   refreshToken,
   updateMe,
+  updatePushToken,
 } = require("../controllers/authController");
 const { protect } = require("../middleware/authMiddleware");
 const { authorizeRoles } = require("../middleware/roleMiddleware");
 const { validateRequest } = require("../middleware/errorHandler");
 const { verifyOtpValidation } = require("../validators/authValidators");
 const { profileUpdateValidation } = require("../validators/profileValidators");
+const { body } = require("express-validator");
 
 const router = express.Router();
 
@@ -28,6 +30,14 @@ router.get("/me", protect, getMe);
 // PATCH /api/auth/me
 // Updates the current authenticated user profile for any app role.
 router.patch("/me", protect, profileUpdateValidation, validateRequest, updateMe);
+
+router.patch(
+  "/push-token",
+  protect,
+  [body("expoPushToken").optional({ checkFalsy: true }).trim().isLength({ max: 300 })],
+  validateRequest,
+  updatePushToken
+);
 
 // POST /api/auth/refresh-token
 // Issues a fresh backend JWT for a valid backend JWT.

@@ -30,7 +30,20 @@ const markAsRead = asyncHandler(async (req, res) => {
   });
 });
 
+const markManyAsRead = asyncHandler(async (req, res) => {
+  const unreadNotifications = await notificationService.markNotificationsAsRead(
+    req.user._id,
+    req.body.notificationIds || []
+  );
+
+  return successResponse(res, 200, "Notifications marked as read", {
+    unreadCount: unreadNotifications.length,
+    notifications: unreadNotifications,
+  });
+});
+
 module.exports = {
   getNotifications,
   markAsRead,
+  markManyAsRead,
 };

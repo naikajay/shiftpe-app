@@ -10,6 +10,11 @@ const normalizeRole = (role) => {
 const isNonEmptyString = (value) =>
   typeof value === "string" && value.trim().length > 0;
 
+const isSupportedProfileImage = (value) => {
+  if (!value) return true;
+  return /^(https?:\/\/|file:\/\/|data:image\/)/.test(value);
+};
+
 const validateLocation = (location) => {
   if (location == null) {
     return null;
@@ -63,6 +68,14 @@ const validateUserProfileInput = (body, options = {}) => {
     errors.push(`role must be one of: ${VALID_ROLES.join(", ")}`);
   }
 
+  if (body.bio && body.bio.trim().length > 300) {
+    errors.push("bio must be at most 300 characters");
+  }
+
+  if (body.hourlyRate != null && (Number.isNaN(Number(body.hourlyRate)) || Number(body.hourlyRate) < 0)) {
+    errors.push("hourlyRate must be a non-negative number");
+  }
+
   if (body.skills != null) {
     if (!Array.isArray(body.skills)) {
       errors.push("skills must be an array");
@@ -93,7 +106,9 @@ module.exports = {
     body("idToken").trim().notEmpty().withMessage("Firebase ID token is required"),
     body("role").optional({ checkFalsy: true }).isIn(VALID_ROLES),
     body("fullName").optional({ checkFalsy: true }).trim().isLength({ min: 2, max: 80 }),
-    body("profileImage").optional({ checkFalsy: true }).trim().isURL(),
+    body("profileImage").optional({ checkFalsy: true }).trim().custom(isSupportedProfileImage),
+    body("bio").optional({ checkFalsy: true }).trim().isLength({ max: 300 }),
+    body("hourlyRate").optional({ checkFalsy: true }).isFloat({ min: 0 }).toFloat(),
     body("skills").optional({ checkFalsy: true }).isArray({ max: 30 }),
   ],
 };

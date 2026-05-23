@@ -45,6 +45,18 @@ export const auth = {
       throw new Error(getErrorMessage(error, "Failed to refresh session."));
     }
   },
+
+  async updatePushToken(expoPushToken: string): Promise<AuthUser> {
+    try {
+      const response = await API.patch<ApiResponse<{ user: AuthUser }> | { user: AuthUser }>(
+        "/auth/push-token",
+        { expoPushToken }
+      );
+      return unwrapApiResponse(response.data).user;
+    } catch (error) {
+      throw new Error(getErrorMessage(error, "Failed to update push token."));
+    }
+  },
 };
 
 export const authService = auth;

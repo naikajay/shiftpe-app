@@ -2,7 +2,8 @@ import { create } from "zustand";
 
 import { storageKeys } from "../constants/storage";
 import { auth } from "../services/auth";
-import { realtime } from "../services/realtime";
+import { registerPushNotifications } from "../services/pushNotifications";
+import { useSocketStore } from "./socketStore";
 import { AuthUser } from "../types/auth";
 import { storage } from "../utils/storage";
 
@@ -29,6 +30,7 @@ interface AuthStoreState {
   setError: (error: string | null) => void;
   setLoading: (loading: boolean) => void;
   refreshUser: () => Promise<void>;
+  updateUser: (user: AuthUser) => Promise<void>;
 }
 
 export const useAuthStore = create<AuthStoreState>((set, get) => ({
@@ -52,11 +54,12 @@ export const useAuthStore = create<AuthStoreState>((set, get) => ({
       isAuthenticated: true,
       error: null,
     });
-    await realtime.connect().catch(() => undefined);
+    await useSocketStore.getState().connect().catch(() => undefined);
+    await registerPushNotifications().catch(() => undefined);
   },
 
   async logout() {
-    realtime.disconnect();
+    useSocketStore.getState().disconnect();
     await storage.multiRemove([
       storageKeys.authToken,
       storageKeys.authUser,
@@ -95,6 +98,8 @@ export const useAuthStore = create<AuthStoreState>((set, get) => ({
           const latestUser = await auth.getMe();
           await storage.setJson(storageKeys.authUser, latestUser);
           set({ user: latestUser });
+          await useSocketStore.getState().connect().catch(() => undefined);
+          await registerPushNotifications().catch(() => undefined);
         } catch {
           await get().logout();
           set({ error: "Session expired. Please login again." });
@@ -148,5 +153,10 @@ export const useAuthStore = create<AuthStoreState>((set, get) => ({
     const latestUser = await auth.getMe();
     await storage.setJson(storageKeys.authUser, latestUser);
     set({ user: latestUser });
+  },
+
+  async updateUser(user) {
+    await storage.setJson(storageKeys.authUser, user);
+    set({ user });
   },
 }));

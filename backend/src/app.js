@@ -6,6 +6,7 @@ const rateLimit = require("express-rate-limit");
 const mongoSanitize = require("./middleware/mongoSanitize");
 
 const authRoutes = require("./routes/authRoutes");
+const userRoutes = require("./routes/userRoutes");
 const taskRoutes = require("./routes/taskRoutes");
 const taskRequestRoutes = require("./routes/taskRequestRoutes");
 const workerRoutes = require("./routes/workerRoutes");
@@ -60,6 +61,7 @@ app.get("/health", (req, res) => {
 });
 
 app.use("/api/auth", authRoutes);
+app.use("/api/users", userRoutes);
 app.use("/api/tasks", taskRoutes);
 app.use("/api/task-requests", taskRequestRoutes);
 app.use("/api/workers", workerRoutes);

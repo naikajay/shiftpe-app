@@ -10,8 +10,8 @@ import { useAuth } from "../context/AuthContext";
 import { UserRole } from "../types/auth";
 
 const roles: { label: string; value: UserRole }[] = [
-  { label: "Worker", value: "worker" },
-  { label: "Task Provider", value: "taskProvider" },
+  { label: "Find shifts", value: "worker" },
+  { label: "Hire workers", value: "taskProvider" },
 ];
 
 export default function RoleSelectScreen() {
@@ -40,7 +40,7 @@ export default function RoleSelectScreen() {
   };
 
   return (
-    <AuthCard title="Choose role" subtitle="Set up the account used on this device.">
+    <AuthCard title="What do you want to do?" subtitle="Workers discover shifts. Hirers post urgent jobs and chat in real time.">
       <AppTextInput
         label="Full name"
         value={fullName}
@@ -62,8 +62,8 @@ export default function RoleSelectScreen() {
                 minHeight: 52,
                 borderRadius: radius.md,
                 borderWidth: 1,
-                borderColor: selected ? colors.navy : colors.border,
-                backgroundColor: selected ? colors.navy : colors.white,
+                borderColor: selected ? colors.accent : colors.border,
+                backgroundColor: selected ? colors.accent : colors.white,
                 alignItems: "center",
                 justifyContent: "center",
                 paddingHorizontal: spacing.sm,
@@ -71,7 +71,7 @@ export default function RoleSelectScreen() {
             >
               <Text
                 style={{
-                  color: selected ? colors.white : colors.navy,
+                  color: selected ? colors.white : colors.text,
                   fontSize: typography.small,
                   fontWeight: "800",
                   textAlign: "center",
@@ -90,14 +90,14 @@ export default function RoleSelectScreen() {
             label="Skills"
             value={skills}
             onChangeText={setSkills}
-            placeholder="Packing, delivery, retail"
+            placeholder="Barista, delivery, retail"
             editable={!loading}
           />
         </>
       ) : null}
 
       <ErrorMessage message={error} />
-      <AppButton label="Finish setup" onPress={handleSubmit} loading={loading} />
+      <AppButton label="Start using ShiftPe" onPress={handleSubmit} loading={loading} />
     </AuthCard>
   );
 }

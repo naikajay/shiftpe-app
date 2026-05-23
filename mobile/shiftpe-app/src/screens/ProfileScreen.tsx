@@ -1,110 +1,143 @@
 import { useState } from "react";
-import { Alert, ScrollView, Switch, Text, View } from "react-native";
+import { RefreshControl, Text, TouchableOpacity, View } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { useNavigation } from "@react-navigation/native";
+import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 
-import AppButton from "../components/AppButton";
-import AppTextInput from "../components/AppTextInput";
-import ErrorMessage from "../components/ErrorMessage";
-import ScreenHeader from "../components/ScreenHeader";
-import { colors, spacing } from "../constants/theme";
-import { useAuth } from "../context/AuthContext";
-import { tasks } from "../services/tasks";
+import Avatar from "../components/ui/Avatar";
+import Badge from "../components/ui/Badge";
+import EmptyState from "../components/ui/EmptyState";
+import Loader from "../components/loaders/Loader";
+import ScreenContainer from "../components/ui/ScreenContainer";
+import ScreenIntro from "../components/design/ScreenIntro";
+import { COLORS, RADIUS, SPACING, TYPOGRAPHY } from "../theme";
+import { RootStackParamList } from "../navigation/AppNavigator";
+import { useAuthStore } from "../store/authStore";
 
 export default function ProfileScreen() {
-  const { user, logout } = useAuth();
-  const [fullName, setFullName] = useState(user?.fullName ?? "");
-  const [skills, setSkills] = useState(user?.skills?.join(", ") ?? "");
-  const [isAvailable, setIsAvailable] = useState(user?.isAvailable ?? true);
-  const [aadhaarUrl, setAadhaarUrl] = useState("");
-  const [panUrl, setPanUrl] = useState("");
-  const [selfieUrl, setSelfieUrl] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const user = useAuthStore((state) => state.user);
+  const loading = useAuthStore((state) => state.loading);
+  const error = useAuthStore((state) => state.error);
+  const logout = useAuthStore((state) => state.logout);
+  const refreshUser = useAuthStore((state) => state.refreshUser);
+  const [refreshing, setRefreshing] = useState(false);
 
-  const saveProfile = async () => {
+  const refresh = async () => {
+    setRefreshing(true);
     try {
-      setLoading(true);
-      setError(null);
-      await tasks.updateProfile({
-        fullName: fullName.trim(),
-        skills: skills
-          .split(",")
-          .map((item) => item.trim())
-          .filter(Boolean),
-        isAvailable,
-      });
-      Alert.alert("Profile", "Profile updated.");
-    } catch (caught: any) {
-      setError(caught.message);
+      await refreshUser();
     } finally {
-      setLoading(false);
+      setRefreshing(false);
     }
   };
 
-  const submitVerifications = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const uploads = [
-        aadhaarUrl ? tasks.submitVerification({ documentType: "aadhaar" as const, documentUrl: aadhaarUrl }) : null,
-        panUrl ? tasks.submitVerification({ documentType: "pan" as const, documentUrl: panUrl }) : null,
-        selfieUrl ? tasks.submitVerification({ documentType: "selfie" as const, documentUrl: selfieUrl }) : null,
-      ].filter(Boolean);
+  if (loading && !user) {
+    return (
+      <ScreenContainer>
+        <Loader />
+      </ScreenContainer>
+    );
+  }
 
-      await Promise.all(uploads);
-      Alert.alert("Verification", "Documents submitted for review.");
-    } catch (caught: any) {
-      setError(caught.message);
-    } finally {
-      setLoading(false);
-    }
-  };
+  if (!user) {
+    return (
+      <ScreenContainer refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={COLORS.primary} />}>
+        <ScreenIntro eyebrow="Profile" title="Profile unavailable" subtitle="We could not load your backend profile from this session." />
+        <EmptyState title="No profile data" message="Login again or pull to refresh your profile." icon="person-circle-outline" />
+      </ScreenContainer>
+    );
+  }
+
+  const skills = user.skills ?? [];
+  const hasLocation = Boolean(user.location?.coordinates?.length === 2);
 
   return (
-    <ScrollView
-      style={{ backgroundColor: colors.surface, flex: 1 }}
-      contentContainerStyle={{ gap: spacing.lg, padding: spacing.lg, paddingTop: spacing.xl }}
-    >
-      <ScreenHeader
-        eyebrow="Worker profile"
-        title="Availability and skills"
-        subtitle="Keep this current so nearby customers can find you."
-      />
-
-      <View style={{ gap: spacing.md }}>
-        <AppTextInput label="Full name" value={fullName} onChangeText={setFullName} />
-        <AppTextInput label="Skills" value={skills} onChangeText={setSkills} placeholder="delivery, packing" />
-        <View
-          style={{
-            alignItems: "center",
-            backgroundColor: colors.white,
-            borderColor: colors.border,
-            borderRadius: 14,
-            borderWidth: 1,
-            flexDirection: "row",
-            justifyContent: "space-between",
-            padding: spacing.md,
-          }}
+    <ScreenContainer refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={COLORS.primary} />}>
+      <View style={{ alignItems: "center", flexDirection: "row", justifyContent: "space-between" }}>
+        <ScreenIntro eyebrow="Profile" title="Your marketplace identity" subtitle="Live profile data from your ShiftPe account." />
+        <TouchableOpacity
+          activeOpacity={0.86}
+          onPress={logout}
+          style={{ alignItems: "center", backgroundColor: COLORS.white, borderRadius: RADIUS.pill, height: 46, justifyContent: "center", width: 46 }}
         >
-          <Text style={{ color: colors.text, fontWeight: "800" }}>Available for work</Text>
-          <Switch value={isAvailable} onValueChange={setIsAvailable} />
+          <Ionicons name="log-out-outline" color={COLORS.text} size={21} />
+        </TouchableOpacity>
+      </View>
+
+      {error ? <Text style={{ color: COLORS.danger, fontSize: TYPOGRAPHY.small }}>{error}</Text> : null}
+
+      <View style={{ alignItems: "center", backgroundColor: COLORS.white, borderColor: COLORS.border, borderRadius: RADIUS.xl, borderWidth: 1, gap: SPACING.md, padding: SPACING.lg }}>
+        <Avatar name={user.fullName} uri={user.profileImage} size={92} />
+        <View style={{ alignItems: "center", gap: SPACING.xs }}>
+          <Text style={{ color: COLORS.text, fontSize: TYPOGRAPHY.heading, fontWeight: "900" }}>{user.fullName || "Name not set"}</Text>
+          <Text style={{ color: COLORS.gray, fontSize: TYPOGRAPHY.small }}>{user.phone || "Phone not available"}</Text>
         </View>
+        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: SPACING.sm, justifyContent: "center" }}>
+          <Badge label={user.verified ? "Verified" : "Verification pending"} tone={user.verified ? "success" : "neutral"} />
+          <Badge label={user.isAvailable ? "Available" : "Unavailable"} tone={user.isAvailable ? "primary" : "neutral"} />
+          <Badge label={user.isWorking ? "Working now" : "Open for work"} tone={user.isWorking ? "success" : "neutral"} />
+        </View>
+        {user.bio ? (
+          <Text style={{ color: COLORS.gray, fontSize: TYPOGRAPHY.small, lineHeight: 20, textAlign: "center" }}>{user.bio}</Text>
+        ) : (
+          <Text style={{ color: COLORS.gray, fontSize: TYPOGRAPHY.small, lineHeight: 20, textAlign: "center" }}>Bio not added yet</Text>
+        )}
       </View>
 
-      <ErrorMessage message={error} />
-      <AppButton label="Save profile" onPress={saveProfile} loading={loading} />
-
-      <View style={{ gap: spacing.md }}>
-        <ScreenHeader
-          eyebrow="Verification"
-          title="KYC documents"
-          subtitle="Add secure URLs for Aadhaar, PAN, and selfie documents."
-        />
-        <AppTextInput label="Aadhaar URL" value={aadhaarUrl} onChangeText={setAadhaarUrl} />
-        <AppTextInput label="PAN URL" value={panUrl} onChangeText={setPanUrl} />
-        <AppTextInput label="Selfie URL" value={selfieUrl} onChangeText={setSelfieUrl} />
-        <AppButton label="Submit verification" onPress={submitVerifications} loading={loading} />
+      <View style={{ flexDirection: "row", gap: SPACING.md }}>
+        <Metric label="Hourly rate" value={user.hourlyRate ? formatCurrency(user.hourlyRate) : "Not set" } />
+        <Metric label="Reliability" value={user.reliabilityScore !== undefined ? `${user.reliabilityScore}%` : "Not rated"} />
       </View>
-      <AppButton label="Logout" onPress={logout} variant="secondary" />
-    </ScrollView>
+
+      <View style={{ flexDirection: "row", gap: SPACING.md }}>
+        <Metric label="Average rating" value={user.ratingAverage ? user.ratingAverage.toFixed(1) : "No ratings"} />
+        <Metric label="Completed tasks" value={user.completedTasksCount ? String(user.completedTasksCount) : "None yet"} />
+      </View>
+
+      <View style={{ backgroundColor: COLORS.white, borderColor: COLORS.border, borderRadius: RADIUS.lg, borderWidth: 1, gap: SPACING.md, padding: SPACING.md }}>
+        <Text style={{ color: COLORS.text, fontSize: TYPOGRAPHY.heading, fontWeight: "900" }}>Skills</Text>
+        {skills.length ? (
+          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: SPACING.sm }}>
+            {skills.map((skill) => <Badge key={skill} label={skill} tone="primary" />)}
+          </View>
+        ) : (
+          <EmptyState title="No skills added" message="Add skills so matching can recommend better nearby shifts." icon="sparkles-outline" />
+        )}
+      </View>
+
+      <View style={{ backgroundColor: COLORS.white, borderColor: COLORS.border, borderRadius: RADIUS.lg, borderWidth: 1, gap: SPACING.sm, padding: SPACING.md }}>
+        <Text style={{ color: COLORS.text, fontSize: TYPOGRAPHY.heading, fontWeight: "900" }}>Location</Text>
+        <Text style={{ color: COLORS.gray, fontSize: TYPOGRAPHY.small }}>
+          {hasLocation ? `${user.location?.coordinates[1]}, ${user.location?.coordinates[0]}` : "Location not set"}
+        </Text>
+      </View>
+
+      <TouchableOpacity
+        activeOpacity={0.86}
+        onPress={() => navigation.navigate("EditProfile")}
+        style={{ alignItems: "center", backgroundColor: COLORS.primary, borderRadius: RADIUS.pill, flexDirection: "row", gap: SPACING.sm, justifyContent: "center", minHeight: 54 }}
+      >
+        <Ionicons name="create-outline" color={COLORS.white} size={20} />
+        <Text style={{ color: COLORS.white, fontSize: TYPOGRAPHY.body, fontWeight: "900" }}>Edit profile</Text>
+      </TouchableOpacity>
+    </ScreenContainer>
   );
+}
+
+function Metric({ label, value }: { label: string; value: string }) {
+  return (
+    <View style={{ backgroundColor: COLORS.white, borderColor: COLORS.border, borderRadius: RADIUS.lg, borderWidth: 1, flex: 1, gap: SPACING.xs, padding: SPACING.md }}>
+      <Text style={{ color: COLORS.gray, fontSize: TYPOGRAPHY.small, fontWeight: "800" }}>{label}</Text>
+      <Text style={{ color: COLORS.text, fontSize: 20, fontWeight: "900" }}>{value}</Text>
+    </View>
+  );
+}
+
+function formatCurrency(value: number) {
+  return new Intl.NumberFormat("en-IN", {
+    currency: "INR",
+    maximumFractionDigits: 0,
+    style: "currency",
+  }).format(value);
 }

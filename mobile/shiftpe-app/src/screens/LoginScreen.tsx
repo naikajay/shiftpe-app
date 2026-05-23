@@ -39,7 +39,7 @@ export default function LoginScreen() {
           cancelLabel="Close"
         />
       ) : null}
-      <AuthCard title="Phone login" subtitle="Use your verified phone number to continue.">
+      <AuthCard title="Enter your phone" subtitle="OTP login keeps onboarding light. No resume, no long forms.">
         <AppTextInput
           label="Phone number"
           value={phone}
@@ -50,7 +50,7 @@ export default function LoginScreen() {
           editable={!loading}
         />
         <ErrorMessage message={error} />
-        <AppButton label="Send OTP" onPress={handleContinue} loading={loading} />
+        <AppButton label="Continue" onPress={handleContinue} loading={loading} />
       </AuthCard>
     </>
   );

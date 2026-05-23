@@ -7,12 +7,13 @@ export default function TaskCardSkeleton() {
       style={{
         backgroundColor: colors.white,
         borderColor: colors.border,
-        borderRadius: radius.lg,
+        borderRadius: radius.xl,
         borderWidth: 1,
         gap: spacing.md,
         padding: spacing.lg,
       }}
     >
+      <View style={{ backgroundColor: colors.surfaceAlt, borderRadius: radius.lg, height: 178, width: "100%" }} />
       <View style={{ backgroundColor: colors.surfaceAlt, borderRadius: radius.sm, height: 22, width: "70%" }} />
       <View style={{ backgroundColor: colors.surfaceAlt, borderRadius: radius.sm, height: 14, width: "45%" }} />
       <View style={{ backgroundColor: colors.surfaceAlt, borderRadius: radius.sm, height: 14, width: "100%" }} />

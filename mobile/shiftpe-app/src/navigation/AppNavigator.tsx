@@ -6,9 +6,12 @@ import LoginScreen from "../screens/LoginScreen";
 import ChatScreen from "../screens/ChatScreen";
 import AdminDashboardScreen from "../screens/AdminDashboardScreen";
 import OtpVerifyScreen from "../screens/OtpVerifyScreen";
-import ProviderDashboardScreen from "../screens/ProviderDashboardScreen";
 import RoleSelectScreen from "../screens/RoleSelectScreen";
+import JobDetailsScreen from "../screens/JobDetailsScreen";
+import EditProfileScreen from "../screens/EditProfileScreen";
 import SplashScreen from "../screens/SplashScreen";
+import { Task } from "../types/task";
+import HirerTabsNavigator from "./HirerTabsNavigator";
 import WorkerTabsNavigator from "./WorkerTabsNavigator";
 
 export type RootStackParamList = {
@@ -17,9 +20,11 @@ export type RootStackParamList = {
   OtpVerify: undefined;
   RoleSelect: undefined;
   WorkerTabs: undefined;
-  ProviderDashboard: undefined;
+  HirerTabs: undefined;
   AdminDashboard: undefined;
   Chat: { requestId: string };
+  JobDetails: { task: Task };
+  EditProfile: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -41,7 +46,7 @@ export default function AppNavigator() {
     }
 
     if (step === "signedIn" && user?.role === "taskProvider") {
-      return <Stack.Screen name="ProviderDashboard" component={ProviderDashboardScreen} />;
+      return <Stack.Screen name="HirerTabs" component={HirerTabsNavigator} />;
     }
 
     if (step === "signedIn" && user?.role === "admin") {
@@ -57,9 +62,11 @@ export default function AppNavigator() {
 
   return (
     <NavigationContainer>
-      <Stack.Navigator screenOptions={{ headerShown: false, animation: "none" }}>
+      <Stack.Navigator screenOptions={{ headerShown: false, animation: "slide_from_right" }}>
         {renderScreen()}
         <Stack.Screen name="Chat" component={ChatScreen} />
+        <Stack.Screen name="JobDetails" component={JobDetailsScreen} />
+        <Stack.Screen name="EditProfile" component={EditProfileScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );

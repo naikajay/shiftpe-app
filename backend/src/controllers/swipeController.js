@@ -22,8 +22,15 @@ const swipeLeft = asyncHandler(async (req, res) => {
   return successResponse(res, 200, "Task skipped successfully", result);
 });
 
+const swipe = asyncHandler(async (req, res) => {
+  const result = await swipeService.swipe(req.user, req.body);
+
+  return successResponse(res, result.request ? 201 : 200, "Swipe recorded successfully", result);
+});
+
 module.exports = {
   getSwipeFeed,
   swipeRight,
   swipeLeft,
+  swipe,
 };

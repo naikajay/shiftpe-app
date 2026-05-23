@@ -21,7 +21,7 @@ export default function OtpVerifyScreen() {
   };
 
   return (
-    <AuthCard title="Verify OTP" subtitle={`Sent to ${pendingAuth?.phone || "your phone"}.`}>
+    <AuthCard title="Verify OTP" subtitle={`Sent to ${pendingAuth?.phone || "your phone"}. You are one step from live shifts.`}>
       <AppTextInput
         label="OTP code"
         value={otp}
@@ -31,7 +31,7 @@ export default function OtpVerifyScreen() {
         editable={!loading}
       />
       <ErrorMessage message={error} />
-      <AppButton label="Verify" onPress={handleVerify} loading={loading} />
+      <AppButton label="Verify and enter" onPress={handleVerify} loading={loading} />
     </AuthCard>
   );
 }

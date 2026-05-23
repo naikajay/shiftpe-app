@@ -3,7 +3,9 @@ const { param, query } = require("express-validator");
 const {
   getNotifications,
   markAsRead,
+  markManyAsRead,
 } = require("../controllers/notificationController");
+const { body } = require("express-validator");
 const { protect } = require("../middleware/authMiddleware");
 const { validateRequest } = require("../middleware/errorHandler");
 
@@ -19,6 +21,13 @@ router.get(
   ],
   validateRequest,
   getNotifications
+);
+
+router.patch(
+  "/read",
+  [body("notificationIds").optional().isArray({ max: 100 })],
+  validateRequest,
+  markManyAsRead
 );
 
 router.patch(

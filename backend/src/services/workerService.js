@@ -8,11 +8,16 @@ const serializeUser = (user) => ({
   phone: user.phone,
   role: user.role,
   profileImage: user.profileImage,
+  bio: user.bio,
+  hourlyRate: user.hourlyRate,
   skills: user.skills,
   location: user.location,
   isWorking: user.isWorking,
   isAvailable: user.isAvailable,
+  isOnline: user.isOnline,
   activeTaskId: user.activeTaskId,
+  currentTask: user.currentTask,
+  lastActive: user.lastActive,
   verified: user.verified,
   reliabilityScore: user.reliabilityScore,
   ratingAverage: user.ratingAverage,
@@ -23,7 +28,7 @@ const serializeUser = (user) => ({
 });
 
 const updateProfile = async (userId, payload) => {
-  const allowedFields = ["fullName", "profileImage", "skills", "location", "isAvailable"];
+  const allowedFields = ["fullName", "profileImage", "bio", "hourlyRate", "skills", "location", "isAvailable"];
   const patch = {};
 
   allowedFields.forEach((field) => {

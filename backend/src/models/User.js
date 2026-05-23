@@ -65,6 +65,23 @@ const userSchema = new mongoose.Schema(
       trim: true,
       default: "",
     },
+    bio: {
+      type: String,
+      trim: true,
+      maxlength: 300,
+      default: "",
+    },
+    hourlyRate: {
+      type: Number,
+      min: 0,
+      default: 0,
+    },
+    expoPushToken: {
+      type: String,
+      trim: true,
+      default: "",
+      index: true,
+    },
     skills: {
       type: [String],
       default: [],
@@ -90,10 +107,26 @@ const userSchema = new mongoose.Schema(
       default: true,
       index: true,
     },
+    isOnline: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
     activeTaskId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Task",
       default: null,
+    },
+    currentTask: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Task",
+      default: null,
+      index: true,
+    },
+    lastActive: {
+      type: Date,
+      default: null,
+      index: true,
     },
     verified: {
       type: Boolean,
@@ -129,7 +162,9 @@ const userSchema = new mongoose.Schema(
 
 userSchema.index({ location: "2dsphere" });
 userSchema.index({ role: 1, isWorking: 1 });
-userSchema.index({ role: 1, isAvailable: 1, isWorking: 1 });
+userSchema.index({ role: 1, isAvailable: 1, isWorking: 1, isOnline: 1 });
+userSchema.index({ skills: 1 });
+userSchema.index({ ratingAverage: -1 });
 userSchema.index({ activeTaskId: 1 });
 
 module.exports = mongoose.model("User", userSchema);

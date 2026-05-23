@@ -103,10 +103,12 @@ const acceptRequest = async (providerId, requestId) => {
       activeTaskId: null,
     },
     {
-      $set: {
-        isWorking: true,
-        activeTaskId: request.taskId,
-      },
+        $set: {
+          isWorking: true,
+          activeTaskId: request.taskId,
+          currentTask: request.taskId,
+          isAvailable: false,
+        },
     }
   );
 
@@ -128,7 +130,7 @@ const acceptRequest = async (providerId, requestId) => {
   if (taskUpdate.modifiedCount !== 1) {
     await User.updateOne(
       { _id: request.workerId },
-      { $set: { isWorking: false, activeTaskId: null } }
+      { $set: { isWorking: false, activeTaskId: null, currentTask: null, isAvailable: true } }
     );
     throw new AppError("Task is full or no longer open", 409);
   }
@@ -148,7 +150,7 @@ const acceptRequest = async (providerId, requestId) => {
   if (!acceptedRequest) {
     await User.updateOne(
       { _id: request.workerId, activeTaskId: request.taskId },
-      { $set: { isWorking: false, activeTaskId: null } }
+      { $set: { isWorking: false, activeTaskId: null, currentTask: null, isAvailable: true } }
     );
     await Task.updateOne({ _id: request.taskId }, { $inc: { workersJoined: -1 } });
     throw new AppError("Task request was already handled", 409);
@@ -274,7 +276,7 @@ const markWorkerRequestComplete = async (workerId, requestId) => {
 
   await User.updateOne(
     { _id: workerId, activeTaskId: request.taskId },
-    { $set: { isWorking: false, activeTaskId: null } }
+    { $set: { isWorking: false, activeTaskId: null, currentTask: null, isAvailable: true } }
   );
 
   const remainingAccepted = await TaskRequest.countDocuments({

@@ -21,7 +21,7 @@ export default function AppButton({
       ? colors.danger
       : variant === "secondary"
       ? colors.white
-      : colors.navy;
+      : colors.accent;
 
   const textColor = variant === "secondary" ? colors.navy : colors.white;
 

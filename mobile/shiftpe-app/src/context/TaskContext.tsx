@@ -8,12 +8,14 @@ import React, {
 } from "react";
 
 import { useAuth } from "./AuthContext";
+import { useNotificationStore } from "../store/notificationStore";
 import { useSocketStore } from "../store/socketStore";
 import { useTaskStore } from "../store/taskStore";
 import { ExploreTasksQuery, Task, TaskRequest } from "../types/task";
 
 interface TaskContextType {
   tasks: Task[];
+  recommendedTasks: Task[];
   activeTask: Task | null;
   activeRequest: TaskRequest | null;
   loadingTasks: boolean;
@@ -23,6 +25,7 @@ interface TaskContextType {
   loadDashboard: () => Promise<void>;
   refreshDashboard: () => Promise<void>;
   applyForTask: (taskId: string) => Promise<void>;
+  swipeTask: (taskId: string, action: "interested" | "ignored") => Promise<void>;
   markActiveWorkComplete: () => Promise<void>;
   clearError: () => void;
 }
@@ -51,8 +54,10 @@ const buildNearbyQuery = (userLocation?: { coordinates: [number, number] }): Exp
 export const TaskProvider = ({ children }: { children: ReactNode }) => {
   const { user } = useAuth();
   const connectSocket = useSocketStore((state) => state.connect);
+  const pushNotification = useNotificationStore((state) => state.pushNotification);
   const {
     tasks,
+    recommendedTasks,
     activeTask,
     activeRequest,
     loadingTasks,
@@ -63,6 +68,7 @@ export const TaskProvider = ({ children }: { children: ReactNode }) => {
     loadDashboard: loadDashboardStore,
     refreshDashboard: refreshDashboardStore,
     applyForTask: applyForTaskStore,
+    swipeTask: swipeTaskStore,
     markActiveWorkComplete: markActiveWorkCompleteStore,
     upsertTask,
     clearError,
@@ -92,6 +98,13 @@ export const TaskProvider = ({ children }: { children: ReactNode }) => {
     [applyForTaskStore, nearbyQuery]
   );
 
+  const swipeTask = useCallback(
+    async (taskId: string, action: "interested" | "ignored") => {
+      await swipeTaskStore(taskId, action, nearbyQuery);
+    },
+    [nearbyQuery, swipeTaskStore]
+  );
+
   const markActiveWorkComplete = useCallback(async () => {
     await markActiveWorkCompleteStore(nearbyQuery);
   }, [markActiveWorkCompleteStore, nearbyQuery]);
@@ -102,27 +115,40 @@ export const TaskProvider = ({ children }: { children: ReactNode }) => {
     let mounted = true;
     connectSocket().then((socket) => {
       if (!mounted) return;
+      const handleTaskUpsert = (task: Task) => {
+        upsertTask(task);
+      };
+
       socket.on("task:accepted", refreshDashboard);
+      socket.on("taskAccepted", refreshDashboard);
       socket.on("task:work-completed", refreshDashboard);
       socket.on("task:status", refreshDashboard);
-      socket.on("task:update", (task: Task) => {
-        upsertTask(task);
-      });
+      socket.on("paymentReceived", refreshDashboard);
+      socket.on("task:new-nearby", handleTaskUpsert);
+      socket.on("newTask", handleTaskUpsert);
+      socket.on("task:update", handleTaskUpsert);
+      socket.on("notification:new", pushNotification);
     });
 
     return () => {
       mounted = false;
       const socket = useSocketStore.getState().socket;
       socket?.off("task:accepted", refreshDashboard);
+      socket?.off("taskAccepted", refreshDashboard);
       socket?.off("task:work-completed", refreshDashboard);
       socket?.off("task:status", refreshDashboard);
+      socket?.off("paymentReceived", refreshDashboard);
+      socket?.off("task:new-nearby");
+      socket?.off("newTask");
       socket?.off("task:update");
+      socket?.off("notification:new");
     };
-  }, [connectSocket, refreshDashboard, upsertTask, user]);
+  }, [connectSocket, pushNotification, refreshDashboard, upsertTask, user]);
 
   const value = useMemo(
     () => ({
       tasks,
+      recommendedTasks,
       activeTask,
       activeRequest,
       loadingTasks,
@@ -132,11 +158,13 @@ export const TaskProvider = ({ children }: { children: ReactNode }) => {
       loadDashboard,
       refreshDashboard,
       applyForTask,
+      swipeTask,
       markActiveWorkComplete,
       clearError,
     }),
     [
       tasks,
+      recommendedTasks,
       activeTask,
       activeRequest,
       loadingTasks,
@@ -146,6 +174,7 @@ export const TaskProvider = ({ children }: { children: ReactNode }) => {
       loadDashboard,
       refreshDashboard,
       applyForTask,
+      swipeTask,
       markActiveWorkComplete,
       clearError,
     ]

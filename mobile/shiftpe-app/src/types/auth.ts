@@ -6,6 +6,9 @@ export interface AuthUser {
   phone: string;
   role: UserRole;
   profileImage?: string;
+  bio?: string;
+  hourlyRate?: number;
+  expoPushToken?: string;
   skills?: string[];
   location?: {
     type: "Point";
@@ -13,10 +16,15 @@ export interface AuthUser {
   };
   isWorking?: boolean;
   isAvailable?: boolean;
+  isOnline?: boolean;
   activeTaskId?: string | null;
+  currentTask?: string | null;
+  lastActive?: string | null;
   verified?: boolean;
   reliabilityScore?: number;
   ratingAverage?: number;
+  totalRatings?: number;
+  completedTasksCount?: number;
 }
 
 export interface VerifyOtpPayload {
@@ -24,6 +32,8 @@ export interface VerifyOtpPayload {
   fullName?: string;
   role?: UserRole;
   profileImage?: string;
+  bio?: string;
+  hourlyRate?: number;
   skills?: string[];
   location?: {
     type: "Point";

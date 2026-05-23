@@ -6,14 +6,17 @@ export default function SplashScreen() {
     <View
       style={{
         flex: 1,
-        backgroundColor: colors.navy,
+        backgroundColor: colors.accent,
         alignItems: "center",
         justifyContent: "center",
         gap: spacing.md,
       }}
     >
-      <Text style={{ color: colors.white, fontSize: typography.title, fontWeight: "800" }}>
+      <Text style={{ color: colors.white, fontSize: 42, fontWeight: "900" }}>
         ShiftPe
+      </Text>
+      <Text style={{ color: colors.white, fontSize: typography.small, fontWeight: "800", opacity: 0.84 }}>
+        Swipe and earn instantly
       </Text>
       <ActivityIndicator color={colors.white} />
     </View>

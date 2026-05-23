@@ -6,7 +6,7 @@ const User = require("../models/User");
 const AppError = require("../utils/AppError");
 const { createNotifications } = require("./notificationService");
 const matchingService = require("./matchingService");
-const { emitTaskUpdate } = require("../sockets/socket");
+const { emitTaskUpdate, emitToUsers } = require("../sockets/socket");
 
 const buildPaymentAmounts = (amount) => {
   const feePercent = Number(process.env.PLATFORM_FEE_PERCENT) || 0;
@@ -36,6 +36,7 @@ const serializeTask = (task) => ({
   distanceMeters: task.distanceMeters,
   completedAt: task.completedAt,
   cancelledAt: task.cancelledAt,
+  recommendationScore: task.recommendationScore,
   createdAt: task.createdAt,
   updatedAt: task.updatedAt,
 });
@@ -55,11 +56,33 @@ const createTask = async (providerId, payload) => {
     address: payload.address,
   });
 
+  const nearbyWorkers = await matchingService.getNearbyWorkersForTask(task);
+  const nearbyWorkerIds = nearbyWorkers.map((worker) => String(worker._id));
+
+  if (nearbyWorkerIds.length) {
+    emitToUsers(nearbyWorkerIds, "task:new-nearby", serializeTask(task));
+    await createNotifications(
+      nearbyWorkerIds.map((workerId) => ({
+        userId: workerId,
+        title: "New nearby task",
+        message: `${task.title} is available near you.`,
+        type: "task",
+        entityType: "Task",
+        entityId: task._id,
+      }))
+    );
+  }
+
+  emitTaskUpdate(String(task._id), "task:posted", serializeTask(task));
   return task;
 };
 
 const getNearbyTasks = async (query) => {
   return matchingService.getOpenTasks(query);
+};
+
+const getRecommendedTasks = async (worker, query) => {
+  return matchingService.getRecommendedTasks(worker, query);
 };
 
 const getTaskById = async (taskId, options = {}) => {
@@ -120,7 +143,7 @@ const completeTask = async (task) => {
     await User.updateMany(
       { _id: { $in: acceptedWorkerIds }, activeTaskId: task._id },
       {
-        $set: { isWorking: false, activeTaskId: null },
+        $set: { isWorking: false, activeTaskId: null, currentTask: null, isAvailable: true },
         $inc: { completedTasksCount: 1 },
       }
     );
@@ -189,7 +212,7 @@ const cancelTask = async (task) => {
   if (acceptedWorkerIds.length) {
     await User.updateMany(
       { _id: { $in: acceptedWorkerIds }, activeTaskId: task._id },
-      { $set: { isWorking: false, activeTaskId: null } }
+      { $set: { isWorking: false, activeTaskId: null, currentTask: null, isAvailable: true } }
     );
   }
 
@@ -241,6 +264,7 @@ module.exports = {
   serializeTask,
   createTask,
   getNearbyTasks,
+  getRecommendedTasks,
   getTaskById,
   getProviderTasks,
   updateTaskStatus,

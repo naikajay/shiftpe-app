@@ -1,35 +1,30 @@
+import { COLORS, RADIUS, SPACING, TYPOGRAPHY } from "../theme";
+
 export const colors = {
-  navy: "#0B1F3A",
-  navyMuted: "#153A63",
-  accent: "#0E8F72",
-  success: "#15803D",
-  white: "#FFFFFF",
-  surface: "#F5F8FC",
-  surfaceAlt: "#EAF1F8",
-  card: "#FFFFFF",
-  text: "#102033",
-  muted: "#66768A",
-  border: "#D9E3EF",
-  danger: "#C93434",
+  navy: COLORS.secondary,
+  navyMuted: "#3F3F46",
+  accent: COLORS.primary,
+  accentSoft: COLORS.primarySoft,
+  success: COLORS.success,
+  successSoft: COLORS.successSoft,
+  gold: COLORS.warning,
+  white: COLORS.white,
+  surface: COLORS.surface,
+  surfaceAlt: COLORS.background,
+  card: COLORS.white,
+  text: COLORS.text,
+  muted: COLORS.muted,
+  border: COLORS.border,
+  danger: COLORS.danger,
 };
 
-export const spacing = {
-  xs: 6,
-  sm: 10,
-  md: 16,
-  lg: 24,
-  xl: 32,
-};
+export const spacing = SPACING;
 
 export const radius = {
-  sm: 8,
-  md: 14,
-  lg: 20,
+  sm: RADIUS.sm,
+  md: RADIUS.md,
+  lg: RADIUS.lg,
+  xl: RADIUS.xl,
 };
 
-export const typography = {
-  title: 30,
-  heading: 22,
-  body: 16,
-  small: 13,
-};
+export const typography = TYPOGRAPHY;

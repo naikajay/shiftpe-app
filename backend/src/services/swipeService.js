@@ -167,8 +167,23 @@ const swipeLeft = async () => ({
   skipped: true,
 });
 
+const swipe = async (worker, payload) => {
+  const direction =
+    payload.direction ||
+    (payload.action === "interested" ? "right" : "left");
+
+  if (direction === "right") {
+    const request = await swipeRight(worker, payload.taskId);
+    return { direction: "right", action: "interested", request };
+  }
+
+  await swipeLeft(worker, payload.taskId);
+  return { direction: "left", action: "ignored", skipped: true };
+};
+
 module.exports = {
   getSwipeFeed,
   swipeRight,
   swipeLeft,
+  swipe,
 };

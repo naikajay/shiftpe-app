@@ -26,6 +26,8 @@ export interface CreateTaskPayload {
 export interface UpdateProfilePayload {
   fullName?: string;
   profileImage?: string;
+  bio?: string;
+  hourlyRate?: number;
   skills?: string[];
   location?: AuthUser["location"];
   isAvailable?: boolean;
@@ -98,14 +100,34 @@ export const tasks = {
     }
   },
 
+  async swipe(taskId: string, action: "interested" | "ignored") {
+    try {
+      const response = await API.post("/tasks/swipe", { taskId, action });
+      return unwrapApiResponse(response.data);
+    } catch (error) {
+      throw new Error(getErrorMessage(error, "Failed to record swipe."));
+    }
+  },
+
   async getNearbyTasks(query: ExploreTasksQuery = {}): Promise<Task[]> {
     try {
       const response = await API.get<
         ApiResponse<{ count: number; tasks: Task[] }> | { count: number; tasks: Task[] }
-      >("/tasks/explore", { params: query });
+      >("/tasks/nearby", { params: query });
       return unwrapApiResponse(response.data).tasks ?? [];
     } catch (error) {
       throw new Error(getErrorMessage(error, "Failed to load nearby tasks."));
+    }
+  },
+
+  async getRecommendedTasks(query: ExploreTasksQuery = {}): Promise<Task[]> {
+    try {
+      const response = await API.get<
+        ApiResponse<{ count: number; tasks: Task[] }> | { count: number; tasks: Task[] }
+      >("/tasks/recommended", { params: query });
+      return unwrapApiResponse(response.data).tasks ?? [];
+    } catch (error) {
+      throw new Error(getErrorMessage(error, "Failed to load recommended tasks."));
     }
   },
 
@@ -235,7 +257,7 @@ export const tasks = {
   async updateProfile(payload: UpdateProfilePayload): Promise<AuthUser> {
     try {
       const response = await API.patch<ApiResponse<{ user: AuthUser }> | { user: AuthUser }>(
-        "/auth/me",
+        "/users/profile",
         payload
       );
       return unwrapApiResponse(response.data).user;

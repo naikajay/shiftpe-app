@@ -108,6 +108,20 @@ const swipeFeedValidation = [
   }),
 ];
 
+const swipeActionValidation = [
+  body("taskId").isMongoId().withMessage("taskId must be valid"),
+  body().custom((payload) => {
+    const directionValid = ["left", "right"].includes(payload.direction);
+    const actionValid = ["interested", "ignored"].includes(payload.action);
+
+    if (!directionValid && !actionValid) {
+      throw new Error("direction must be left/right or action must be interested/ignored");
+    }
+
+    return true;
+  }),
+];
+
 module.exports = {
   PAY_TYPES,
   TASK_STATUSES,
@@ -117,4 +131,5 @@ module.exports = {
   taskIdValidation,
   updateTaskStatusValidation,
   swipeFeedValidation,
+  swipeActionValidation,
 };

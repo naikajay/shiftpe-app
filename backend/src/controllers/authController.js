@@ -15,11 +15,17 @@ const toUserResponse = (user) => ({
   phone: user.phone,
   role: user.role,
   profileImage: user.profileImage,
+  bio: user.bio,
+  hourlyRate: user.hourlyRate,
+  expoPushToken: user.expoPushToken,
   skills: user.skills,
   location: user.location,
   isWorking: user.isWorking,
   isAvailable: user.isAvailable,
+  isOnline: user.isOnline,
   activeTaskId: user.activeTaskId,
+  currentTask: user.currentTask,
+  lastActive: user.lastActive,
   verified: user.verified,
   reliabilityScore: user.reliabilityScore,
   ratingAverage: user.ratingAverage,
@@ -54,6 +60,8 @@ const buildUserPatch = (body, role) => {
   [
     "fullName",
     "profileImage",
+    "bio",
+    "hourlyRate",
     "skills",
     "location",
   ].forEach((field) => {
@@ -151,7 +159,7 @@ const refreshToken = asyncHandler(async (req, res) => {
 });
 
 const updateMe = asyncHandler(async (req, res) => {
-  const allowedFields = ["fullName", "profileImage", "skills", "location", "isAvailable"];
+  const allowedFields = ["fullName", "profileImage", "bio", "hourlyRate", "skills", "location", "isAvailable"];
   const patch = {};
 
   allowedFields.forEach((field) => {
@@ -170,9 +178,22 @@ const updateMe = asyncHandler(async (req, res) => {
   });
 });
 
+const updatePushToken = asyncHandler(async (req, res) => {
+  const user = await User.findByIdAndUpdate(
+    req.user._id,
+    { $set: { expoPushToken: req.body.expoPushToken || "" } },
+    { returnDocument: "after", runValidators: true }
+  );
+
+  return successResponse(res, 200, "Push token updated successfully", {
+    user: toUserResponse(user),
+  });
+});
+
 module.exports = {
   verifyOtp,
   getMe,
   refreshToken,
   updateMe,
+  updatePushToken,
 };
